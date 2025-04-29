@@ -1,0 +1,211 @@
+<!-- 权限系统初始化模板 -->
+<!-- 这个文件需要被其他HTML文件通过JavaScript动态引入 -->
+<!-- 使用方法: 在页面的<head>部分添加以下脚本:
+    <script>
+        fetch('header-template.html')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('page-header-container').innerHTML = html;
+                initPageHeader();
+            });
+    </script>
+-->
+
+<!-- 侧边导航栏 -->
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-tshirt fa-2x me-2"></i>
+            <h5 class="mb-0">尚荣定制管理系统</h5>
+        </div>
+    </div>
+    
+    <div class="sidebar-title">主菜单</div>
+    <ul class="sidebar-menu">
+        <li class="sidebar-item">
+            <a href="index.html" class="sidebar-link" id="nav-home">
+                <i class="fas fa-home"></i>
+                <span>首页</span>
+            </a>
+        </li>
+        <li class="sidebar-item">
+            <a href="order.html" class="sidebar-link" id="nav-order">
+                <i class="fas fa-clipboard-list"></i>
+                <span>订单管理</span>
+            </a>
+        </li>
+        <li class="sidebar-item" data-permission="manage_costs">
+            <a href="cost.html" class="sidebar-link" id="nav-cost">
+                <i class="fas fa-money-bill"></i>
+                <span>成本管理</span>
+            </a>
+        </li>
+        <li class="sidebar-item" data-permission="manage_salaries">
+            <a href="salary.html" class="sidebar-link" id="nav-salary">
+                <i class="fas fa-money-bill-wave"></i>
+                <span>工资录入</span>
+            </a>
+        </li>
+        <li class="sidebar-item" data-permission="view_analysis">
+            <a href="analysis.html" class="sidebar-link" id="nav-analysis">
+                <i class="fas fa-chart-line"></i>
+                <span>经营分析</span>
+            </a>
+        </li>
+    </ul>
+    
+    <div class="sidebar-title">系统管理</div>
+    <ul class="sidebar-menu">
+        <li class="sidebar-item" data-permission="manage_data">
+            <a href="data-management.html" class="sidebar-link" id="nav-data">
+                <i class="fas fa-database"></i>
+                <span>数据管理</span>
+            </a>
+        </li>
+        <li class="sidebar-item">
+            <a href="guide.html" class="sidebar-link" id="nav-guide">
+                <i class="fas fa-question-circle"></i>
+                <span>使用指南</span>
+            </a>
+        </li>
+        <li class="sidebar-item">
+            <a href="profile.html" class="sidebar-link" id="nav-profile">
+                <i class="fas fa-user-cog"></i>
+                <span>个人设置</span>
+            </a>
+        </li>
+    </ul>
+    
+    <div class="sidebar-user mt-auto">
+        <div class="user-info">
+            <div class="user-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="user-details">
+                <div class="user-name" id="sidebarUserName">加载中...</div>
+                <div class="user-role" id="sidebarUserRole">请稍候</div>
+            </div>
+        </div>
+        <button class="btn btn-outline-light btn-sm w-100" id="sidebarLogoutBtn">
+            <i class="fas fa-sign-out-alt me-2"></i>退出登录
+        </button>
+    </div>
+</aside>
+
+<script>
+/**
+ * 初始化页面头部
+ */
+function initPageHeader() {
+    // 设置当前页面对应的导航项为活动状态
+    setActiveNavItem();
+    
+    // 显示用户信息
+    displayUserInfo();
+    
+    // 应用权限到菜单
+    applyMenuPermissions();
+    
+    // 添加侧边栏切换功能
+    initSidebarToggle();
+    
+    // 绑定退出登录事件
+    document.getElementById('sidebarLogoutBtn').addEventListener('click', function() {
+        window.logout();
+    });
+}
+
+/**
+ * 设置当前页面对应的导航项为活动状态
+ */
+function setActiveNavItem() {
+    // 获取当前页面的文件名
+    const currentPage = window.location.pathname.split('/').pop();
+    
+    // 清除所有导航项的活动状态
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+        link.classList.remove('active');
+    });
+    
+    // 根据当前页面设置活动导航项
+    if (currentPage === '' || currentPage === 'index.html') {
+        document.getElementById('nav-home').classList.add('active');
+    } else if (currentPage.includes('order')) {
+        document.getElementById('nav-order').classList.add('active');
+    } else if (currentPage.includes('cost')) {
+        document.getElementById('nav-cost').classList.add('active');
+    } else if (currentPage.includes('salary')) {
+        document.getElementById('nav-salary').classList.add('active');
+    } else if (currentPage.includes('analysis')) {
+        document.getElementById('nav-analysis').classList.add('active');
+    } else if (currentPage.includes('data-management')) {
+        document.getElementById('nav-data').classList.add('active');
+    } else if (currentPage.includes('guide')) {
+        document.getElementById('nav-guide').classList.add('active');
+    } else if (currentPage.includes('profile')) {
+        document.getElementById('nav-profile').classList.add('active');
+    }
+}
+
+/**
+ * 显示用户信息
+ */
+function displayUserInfo() {
+    const userInfo = permissionState.currentUser;
+    if (userInfo) {
+        // 侧边栏用户信息
+        document.getElementById('sidebarUserName').textContent = userInfo.name || userInfo.username;
+        document.getElementById('sidebarUserRole').textContent = 
+            userInfo.role === 'admin' ? '管理员' : 
+            (userInfo.role === 'sales' ? '销售员' : '普通用户');
+    }
+}
+
+/**
+ * 应用权限控制到导航菜单
+ */
+function applyMenuPermissions() {
+    // 处理有权限要求的菜单项
+    document.querySelectorAll('[data-permission]').forEach(element => {
+        const permission = element.getAttribute('data-permission');
+        if (!window.hasPermission(permission)) {
+            element.style.display = 'none';
+        }
+    });
+}
+
+/**
+ * 初始化侧边栏切换功能
+ */
+function initSidebarToggle() {
+    const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+    const sidebar = document.querySelector('.sidebar');
+    const mainContent = document.querySelector('.main-content');
+    
+    if (sidebarToggleBtn) {
+        sidebarToggleBtn.addEventListener('click', function() {
+            if (sidebar) {
+                sidebar.classList.toggle('show');
+            }
+        });
+    }
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', function() {
+        if (window.innerWidth >= 576) {
+            if (sidebar && sidebar.classList.contains('show')) {
+                sidebar.classList.remove('show');
+            }
+        }
+    });
+    
+    // 点击主内容区域时，在小屏幕上关闭侧边栏
+    if (mainContent) {
+        mainContent.addEventListener('click', function() {
+            if (window.innerWidth < 576 && sidebar && sidebar.classList.contains('show')) {
+                sidebar.classList.remove('show');
+            }
+        });
+    }
+}
+</script> 

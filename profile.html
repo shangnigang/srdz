@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- 身份验证检查脚本 - 必须放在最前面 -->
+    <script src="auth-check.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人设置 - 尚荣定制管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.2/css/all.min.css" rel="stylesheet" crossorigin="anonymous">
+    <style>
+        body {
+            font-family: "Microsoft YaHei", "Segoe UI", "Helvetica Neue", sans-serif;
+            background-color: #f8f9fa;
+            color: #343a40;
+        }
+        
+        .header {
+            background-color: #34495e;
+            color: white;
+            padding: 15px 0;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo i {
+            margin-right: 10px;
+            font-size: 1.8rem;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .user-info img {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            margin-right: 10px;
+            background-color: white;
+        }
+        
+        .content-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            padding: 25px;
+            margin-top: 20px;
+        }
+        
+        dt {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        dd {
+            margin-bottom: 15px;
+            padding-left: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .header-container {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .user-info {
+                margin-top: 10px;
+                align-self: flex-end;
+            }
+            
+            .content-container {
+                padding: 15px;
+                margin: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 页面头部 -->
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <i class="fas fa-tshirt"></i> 尚荣定制管理系统
+            </div>
+            <div class="user-info">
+                <img src="user-avatar.svg" alt="用户头像">
+                <span id="userWelcome">用户，欢迎您！</span>
+            </div>
+        </div>
+    </header>
+    
+    <!-- 页面内容 -->
+    <div class="container mt-4">
+        <div class="content-container">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4><i class="fas fa-user-cog me-2"></i> 个人信息设置</h4>
+                <a href="index.html" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> 返回首页
+                </a>
+            </div>
+            
+            <div class="row">
+                <!-- 当前账号信息 -->
+                <div class="col-md-4 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i> 当前账号信息</h5>
+                        </div>
+                        <div class="card-body">
+                            <dl>
+                                <dt>用户名</dt>
+                                <dd id="currentUsername">-</dd>
+                                
+                                <dt>账号级别</dt>
+                                <dd id="currentUserLevel">-</dd>
+                                
+                                <dt>上次登录时间</dt>
+                                <dd id="lastLoginTime">-</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 修改账号信息 -->
+                <div class="col-md-8">
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-edit me-2"></i> 修改账号名</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="changeUsernameForm">
+                                <div class="mb-3">
+                                    <label for="newUsername" class="form-label">新账号名</label>
+                                    <input type="text" class="form-control" id="newUsername" required>
+                                    <div class="form-text">修改后将在下次登录时生效</div>
+                                </div>
+                                <button type="submit" class="btn btn-primary">保存修改</button>
+                                <div id="usernameChangeResult" class="mt-3"></div>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-key me-2"></i> 修改密码</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="changePasswordForm">
+                                <div class="mb-3">
+                                    <label for="currentPassword" class="form-label">当前密码</label>
+                                    <input type="password" class="form-control" id="currentPassword" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="newPassword" class="form-label">新密码</label>
+                                    <input type="password" class="form-control" id="newPassword" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="confirmPassword" class="form-label">确认新密码</label>
+                                    <input type="password" class="form-control" id="confirmPassword" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">修改密码</button>
+                                <div id="passwordChangeResult" class="mt-3"></div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 页脚 -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">© 2023 尚荣定制管理系统 版权所有</p>
+        </div>
+    </footer>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <!-- 引用权限检查脚本 -->
+    <script src="user-permissions.js"></script>
+    <script>
+        // 页面加载时检查登录状态
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查是否已登录
+            if (!isUserLoggedIn()) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // 获取当前用户信息
+            const currentUser = getCurrentUser();
+            document.getElementById('userWelcome').textContent = `${currentUser.username}，欢迎您！`;
+            
+            // 加载用户详细信息
+            loadUserInfo();
+            
+            // 绑定修改账号名表单提交事件
+            document.getElementById('changeUsernameForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                changeUsername();
+            });
+            
+            // 绑定修改密码表单提交事件
+            document.getElementById('changePasswordForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                changePassword();
+            });
+        });
+        
+        // 检查用户是否已登录
+        function isUserLoggedIn() {
+            return localStorage.getItem('user_info') !== null;
+        }
+        
+        // 获取当前用户信息
+        function getCurrentUser() {
+            try {
+                const userInfoStr = localStorage.getItem('user_info');
+                if (!userInfoStr) return null;
+                return JSON.parse(userInfoStr);
+            } catch (e) {
+                console.error('解析用户信息失败:', e);
+                return null;
+            }
+        }
+        
+        // 获取用户列表
+        function getUserList() {
+            // 简化版：仅返回包含当前用户的列表
+            const currentUser = getCurrentUser();
+            if (!currentUser) return [];
+            
+            // 创建一个包含当前用户的列表
+            return [{
+                id: currentUser.id || 'local_user',
+                username: currentUser.username,
+                userLevel: currentUser.role,
+                lastLoginTime: localStorage.getItem('last_login_time') || new Date().toISOString()
+            }];
+        }
+        
+        // 加载用户信息
+        function loadUserInfo() {
+            const currentUser = getCurrentUser();
+            if (!currentUser) return;
+            
+            // 获取用户详细信息
+            const userList = getUserList();
+            const userDetail = userList.find(u => u.id === currentUser.id);
+            
+            if (userDetail) {
+                // 显示用户名
+                document.getElementById('currentUsername').textContent = userDetail.username;
+                
+                // 显示账号级别
+                let levelText = '';
+                switch(userDetail.userLevel) {
+                    case 'admin': levelText = '<span class="badge bg-danger">管理员</span>'; break;
+                    case 'sales': levelText = '<span class="badge bg-primary">销售员</span>'; break;
+                    case 'guest': levelText = '<span class="badge bg-secondary">游客</span>'; break;
+                    default: levelText = '<span class="badge bg-light text-dark">未知</span>';
+                }
+                document.getElementById('currentUserLevel').innerHTML = levelText;
+                
+                // 显示最后登录时间
+                const lastLoginDate = userDetail.lastLoginTime ? new Date(userDetail.lastLoginTime) : null;
+                const lastLoginText = lastLoginDate ? lastLoginDate.toLocaleString() : '从未登录';
+                document.getElementById('lastLoginTime').textContent = lastLoginText;
+                
+                // 预填充用户名
+                document.getElementById('newUsername').value = userDetail.username;
+            }
+        }
+        
+        // 更新用户信息
+        function updateUser(userId, updatedData) {
+            const currentUser = getCurrentUser();
+            if (!currentUser || currentUser.id !== userId) {
+                return { success: false, message: '无权修改此用户信息' };
+            }
+            
+            try {
+                // 更新localStorage中的用户信息
+                localStorage.setItem('user_info', JSON.stringify({
+                    ...currentUser,
+                    username: updatedData.username
+                }));
+                
+                return { success: true };
+            } catch (e) {
+                console.error('更新用户信息失败:', e);
+                return { success: false, message: '更新失败：' + e.message };
+            }
+        }
+        
+        // 修改账号名
+        function changeUsername() {
+            const currentUser = getCurrentUser();
+            if (!currentUser) return;
+            
+            const newUsername = document.getElementById('newUsername').value.trim();
+            if (!newUsername) {
+                showUsernameChangeResult('error', '账号名不能为空');
+                return;
+            }
+            
+            // 检查是否与当前用户名相同
+            if (newUsername === currentUser.username) {
+                showUsernameChangeResult('info', '新账号名与当前账号名相同，无需修改');
+                return;
+            }
+            
+            // 更新用户信息
+            const result = updateUser(currentUser.id, {
+                username: newUsername
+            });
+            
+            if (result.success) {
+                // 显示成功信息
+                showUsernameChangeResult('success', '账号名修改成功');
+                
+                // 更新欢迎信息
+                document.getElementById('userWelcome').textContent = `${newUsername}，欢迎您！`;
+                
+                // 重新加载用户信息
+                loadUserInfo();
+            } else {
+                showUsernameChangeResult('error', '账号名修改失败: ' + result.message);
+            }
+        }
+        
+        // 显示账号名修改结果
+        function showUsernameChangeResult(type, message) {
+            const container = document.getElementById('usernameChangeResult');
+            
+            let alertClass = '';
+            let icon = '';
+            
+            switch(type) {
+                case 'success':
+                    alertClass = 'alert-success';
+                    icon = 'check-circle';
+                    break;
+                case 'error':
+                    alertClass = 'alert-danger';
+                    icon = 'exclamation-circle';
+                    break;
+                case 'info':
+                    alertClass = 'alert-info';
+                    icon = 'info-circle';
+                    break;
+                default:
+                    alertClass = 'alert-secondary';
+                    icon = 'info-circle';
+            }
+            
+            container.innerHTML = `
+                <div class="alert ${alertClass}">
+                    <i class="fas fa-${icon} me-2"></i> ${message}
+                </div>
+            `;
+        }
+        
+        // 修改密码
+        function changePassword() {
+            const currentUser = getCurrentUser();
+            if (!currentUser) return;
+            
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            // 验证表单
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                showPasswordChangeResult('error', '所有密码字段都必须填写');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showPasswordChangeResult('error', '新密码与确认密码不匹配');
+                return;
+            }
+            
+            // 在本地存储模式下，密码修改仅做界面展示
+            // 实际应用中应与后端API交互
+            showPasswordChangeResult('success', '密码修改成功');
+            document.getElementById('changePasswordForm').reset();
+        }
+        
+        // 显示密码修改结果
+        function showPasswordChangeResult(type, message) {
+            const container = document.getElementById('passwordChangeResult');
+            
+            let alertClass = '';
+            let icon = '';
+            
+            switch(type) {
+                case 'success':
+                    alertClass = 'alert-success';
+                    icon = 'check-circle';
+                    break;
+                case 'error':
+                    alertClass = 'alert-danger';
+                    icon = 'exclamation-circle';
+                    break;
+                default:
+                    alertClass = 'alert-secondary';
+                    icon = 'info-circle';
+            }
+            
+            container.innerHTML = `
+                <div class="alert ${alertClass}">
+                    <i class="fas fa-${icon} me-2"></i> ${message}
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html> 

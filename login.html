@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>尚荣定制管理系统 - 登录</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.2/css/all.min.css" rel="stylesheet" crossorigin="anonymous">
+    <style>
+        body {
+            font-family: "Microsoft YaHei", "Segoe UI", "Helvetica Neue", sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+            width: 900px;
+            max-width: 100%;
+            display: flex;
+        }
+        .login-image {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 40px;
+            width: 40%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .login-image h2 {
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .login-image p {
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        .login-image .logo-icon {
+            font-size: 60px;
+            margin-bottom: 30px;
+        }
+        .login-form {
+            padding: 40px;
+            width: 60%;
+        }
+        .login-form h1 {
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 25px;
+        }
+        .form-group label {
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 8px;
+        }
+        .form-control {
+            border-radius: 5px;
+            padding: 12px 15px;
+            height: auto;
+            border: 1px solid #ddd;
+        }
+        .form-control:focus {
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+            border-color: #3498db;
+        }
+        .btn-login {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            border: none;
+            padding: 12px 20px;
+            font-weight: 500;
+            width: 100%;
+            margin-top: 10px;
+            border-radius: 5px;
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+            transition: all 0.3s;
+        }
+        .btn-login:hover {
+            background: linear-gradient(135deg, #2980b9, #1f618d);
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(52, 152, 219, 0.4);
+        }
+        .login-footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #777;
+            font-size: 14px;
+        }
+        .alert {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 768px) {
+            .login-container {
+                flex-direction: column;
+                width: 95%;
+            }
+            .login-image, .login-form {
+                width: 100%;
+            }
+            .login-image {
+                padding: 30px;
+            }
+        }
+        /* 添加模式切换按钮的明显样式 */
+        #toggleLoginMode {
+            display: inline-block;
+            padding: 8px 12px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+            color: #495057;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        #toggleLoginMode:hover {
+            background-color: #e9ecef;
+            color: #212529;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-image">
+            <div class="logo-icon">
+                <i class="fas fa-tshirt"></i>
+            </div>
+            <h2>尚荣定制管理系统</h2>
+            <p>专业的服装定制店铺管理解决方案，提供订单管理、成本控制、数据分析等全方位功能。</p>
+        </div>
+        <div class="login-form">
+            <h1>用户登录</h1>
+            
+            <div class="alert alert-danger" id="loginError" role="alert">
+                <i class="fas fa-exclamation-triangle"></i> <span id="errorMessage">用户名或密码错误</span>
+            </div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" class="form-control" id="username" placeholder="请输入用户名" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" class="form-control" id="password" placeholder="请输入密码" required>
+                </div>
+                <div class="form-check mb-3">
+                    <input type="checkbox" class="form-check-input" id="rememberMe">
+                    <label class="form-check-label" for="rememberMe">记住我</label>
+                </div>
+                <button type="submit" class="btn btn-primary btn-login" id="loginButton">
+                    <span id="loginText">登录</span>
+                    <span id="loginSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <p>还没有账户？请联系管理员创建</p>
+            </div>
+            
+            <!-- 登录方式切换链接 -->
+            <div class="text-center mt-4">
+                <button id="toggleLoginMode" class="btn btn-sm">
+                    <small>切换到本地存储模式 <i class="fas fa-exchange-alt"></i></small>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 登录页面不需要引入完整权限系统 -->
+    <script>
+        // 设置标记，禁止权限系统初始化和路由保护
+        window.isLoginPage = true;
+    </script>
+    <!-- 引入自动初始化脚本 -->
+    <script src="auto-init.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <script>
+        // 检查用户是否已登录
+        function isAuthenticated() {
+            return !!localStorage.getItem('auth_token');
+        }
+        
+        // 获取登录后的重定向URL
+        function getRedirectUrl() {
+            // 尝试从会话存储中获取重定向URL
+            const redirectUrl = sessionStorage.getItem('redirect_after_login');
+            // 如果存在重定向URL，则使用它，否则默认重定向到首页
+            return redirectUrl || 'index.html';
+        }
+        
+        // 登录函数
+        async function loginToServer(username, password) {
+            try {
+                console.log('执行服务器模式登录...');
+                
+                // 直接使用模拟逻辑，不发送实际网络请求
+                // 模拟服务器请求延迟
+                await new Promise(resolve => setTimeout(resolve, 800));
+                
+                // 模拟成功响应
+                console.log('检查用户名密码:', username, password);
+                if (username === 'admin' && password === 'admin123') {
+                    console.log('用户名密码验证成功');
+                    return {
+                        success: true,
+                        token: 'demo_token_' + Date.now(),
+                        user: {
+                            id: '1',
+                            username: username,
+                            name: '管理员',
+                            role: 'admin',
+                            shopId: 'shop_001'
+                        }
+                    };
+                } else {
+                    console.log('用户名密码验证失败');
+                    return {
+                        success: false,
+                        message: '用户名或密码错误'
+                    };
+                }
+                
+                /* 以下是真实服务器请求的代码，暂时注释
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || '登录失败');
+                }
+                
+                return await response.json();
+                */
+            } catch (error) {
+                console.error('登录请求错误:', error);
+                throw new Error('服务器连接失败，请稍后再试');
+            }
+        }
+        
+        // 全局变量
+        let isServerMode = true; // 默认为服务器模式
+        
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            // 强制清除本地存储，防止可能的登录问题
+            console.log('页面加载完成，当前登录状态:', isAuthenticated() ? '已登录' : '未登录');
+            
+            // 检查是否有损坏或过期的登录信息
+            const tokenExpiry = localStorage.getItem('token_expiry');
+            if (tokenExpiry && new Date(tokenExpiry) < new Date()) {
+                console.log('登录令牌已过期，清除登录状态');
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('user_info');
+                localStorage.removeItem('token_expiry');
+            }
+            
+            // 如果已经登录，则直接跳转到合适的页面
+            if (isAuthenticated()) {
+                window.location.href = getRedirectUrl();
+                return;
+            }
+            
+            // 获取表单元素
+            const loginForm = document.getElementById('loginForm');
+            const loginButton = document.getElementById('loginButton');
+            const loginText = document.getElementById('loginText');
+            const loginSpinner = document.getElementById('loginSpinner');
+            const loginError = document.getElementById('loginError');
+            const errorMessage = document.getElementById('errorMessage');
+            const toggleLoginMode = document.getElementById('toggleLoginMode');
+            
+            // 切换登录模式
+            toggleLoginMode.addEventListener('click', function() {
+                isServerMode = !isServerMode;
+                
+                if (isServerMode) {
+                    toggleLoginMode.innerHTML = '<small>切换到本地存储模式 <i class="fas fa-exchange-alt"></i></small>';
+                    console.log('已切换到服务器模式');
+                } else {
+                    toggleLoginMode.innerHTML = '<small>切换到服务器模式 <i class="fas fa-exchange-alt"></i></small>';
+                    console.log('已切换到本地存储模式');
+                }
+                
+                // 添加视觉反馈
+                toggleLoginMode.classList.add('btn-info');
+                setTimeout(() => {
+                    toggleLoginMode.classList.remove('btn-info');
+                }, 300);
+            });
+            
+            // 表单提交处理
+            loginForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // 获取输入值
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                console.log('尝试登录，模式:', isServerMode ? '服务器模式' : '本地存储模式');
+                console.log('输入的用户名:', username);
+                console.log('输入的密码:', password);
+                
+                // 显示加载状态
+                loginButton.disabled = true;
+                loginText.classList.add('d-none');
+                loginSpinner.classList.remove('d-none');
+                loginError.style.display = 'none';
+                
+                try {
+                    if (isServerMode) {
+                        // 服务器模式: 调用API登录
+                        const response = await loginToServer(username, password);
+                        
+                        if (response.success) {
+                            // 登录成功，保存认证信息
+                            localStorage.setItem('auth_token', response.token);
+                            localStorage.setItem('user_info', JSON.stringify(response.user));
+                            
+                            // 设置令牌过期时间
+                            const rememberMe = document.getElementById('rememberMe').checked;
+                            const expiryDate = new Date();
+                            
+                            if (rememberMe) {
+                                // 如果选择"记住我"，则设置较长的有效期 (7天)
+                                expiryDate.setDate(expiryDate.getDate() + 7);
+                            } else {
+                                // 否则设置较短的有效期 (12小时)
+                                expiryDate.setHours(expiryDate.getHours() + 12);
+                            }
+                            
+                            localStorage.setItem('token_expiry', expiryDate.toISOString());
+                            
+                            // 跳转到适当的页面
+                            window.location.href = getRedirectUrl();
+                        } else {
+                            // 显示错误消息
+                            errorMessage.textContent = response.message || '登录失败';
+                            loginError.style.display = 'block';
+                        }
+                    } else {
+                        // 本地存储模式: 直接登录
+                        console.log('使用本地存储模式登录');
+                        
+                        // 根据用户名设置不同的角色
+                        let userRole = 'user';
+                        let userName = username;
+                        
+                        if (username === 'admin') {
+                            userRole = 'admin';
+                            userName = '管理员';
+                        } else if (username === 'sales') {
+                            userRole = 'sales';
+                            userName = '销售员';
+                        } else if (username === 'guest') {
+                            userRole = 'user';
+                            userName = '访客用户';
+                        }
+                        
+                        localStorage.setItem('auth_token', 'local_storage_mode_token_' + username);
+                        localStorage.setItem('user_info', JSON.stringify({
+                            id: 'local_user',
+                            username: username,
+                            name: userName,
+                            role: userRole,
+                            shopId: 'local_shop'
+                        }));
+                        
+                        // 设置令牌过期时间
+                        const rememberMe = document.getElementById('rememberMe').checked;
+                        const expiryDate = new Date();
+                        
+                        if (rememberMe) {
+                            // 如果选择"记住我"，则设置较长的有效期 (7天)
+                            expiryDate.setDate(expiryDate.getDate() + 7);
+                        } else {
+                            // 否则设置较短的有效期 (12小时)
+                            expiryDate.setHours(expiryDate.getHours() + 12);
+                        }
+                        
+                        localStorage.setItem('token_expiry', expiryDate.toISOString());
+                        
+                        // 登录成功，跳转到适当的页面
+                        window.location.href = getRedirectUrl();
+                    }
+                } catch (error) {
+                    // 显示错误消息
+                    console.error('登录错误:', error);
+                    errorMessage.textContent = error.message || '登录失败，请稍后再试';
+                    loginError.style.display = 'block';
+                } finally {
+                    // 恢复按钮状态
+                    loginButton.disabled = false;
+                    loginText.classList.remove('d-none');
+                    loginSpinner.classList.add('d-none');
+                }
+            });
+            
+            // 清除会话存储中的重定向URL，以防重复使用
+            sessionStorage.removeItem('redirect_after_login');
+        });
+    </script>
+</body>
+</html> 

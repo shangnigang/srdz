@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- 身份验证检查脚本 - 必须放在最前面 -->
+    <script src="auth-check.js"></script>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>尚荣定制管理系统 - 工资录入</title>
+    
+    <!-- 紧急权限覆盖 - 确保最早执行 -->
+    <script>
+        // 检查当前用户是否为管理员
+        function isAdmin() {
+            try {
+                const userInfoStr = localStorage.getItem('user_info');
+                if (!userInfoStr) return false;
+                
+                const userInfo = JSON.parse(userInfoStr);
+                return userInfo && userInfo.role === 'admin';
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        // 只有管理员才能获得权限覆盖
+        if (isAdmin()) {
+            // 紧急权限覆盖
+            window._adminEmergencyOverride = true;
+            window.adminPermissionsEnabled = true;
+            window.isAdmin = true;
+            
+            // 添加早期钩子
+            window.hasPermission = function() { return true; };
+            window.checkPermission = function() { return true; };
+            
+            console.log('页面内联管理员权限覆盖已应用');
+        }
+    </script>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.3.1/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <!-- Font Awesome 图标库 -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet" crossorigin="anonymous">
+    
+    <style>
+        /* 通用样式 */
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            min-height: 100vh;
+        }
+        
+        /* 页眉样式 */
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 15px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo i {
+            margin-right: 10px;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-info img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        
+        /* 内容容器样式 */
+        .content-container {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 20px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        
+        /* 导航标签样式 */
+        .nav-container {
+            background-color: #fff;
+            border-bottom: 1px solid #e9ecef;
+            padding: 0 20px;
+        }
+        
+        .nav-tabs {
+            border-bottom: none;
+        }
+        
+        .nav-tabs .nav-link {
+            border: none;
+            color: #495057;
+            padding: 12px 15px;
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            border-color: #e9ecef #e9ecef #3498db;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: #3498db;
+            background-color: transparent;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        /* 表格样式 */
+        .table {
+            font-size: 13px;
+            width: 100%;
+            margin-bottom: 1rem;
+            color: #333;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        
+        .table tr {
+            height: 40px; /* 增加到40px，与订单管理表一致 */
+            vertical-align: middle;
+        }
+        
+        .table td, .table th {
+            padding: 8px 10px; /* 从3px 5px增加到8px 10px */
+            line-height: 1.3; /* 从1.1增加到1.3 */
+            border-top: 1px solid #dee2e6;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .table td {
+            font-size: 14px; /* 增加单元格字体大小，与订单管理表一致 */
+            vertical-align: middle;
+        }
+        
+        .table th {
+            font-size: 15px; /* 从12px增加到15px */
+            line-height: 1.2; /* 从1增加到1.2 */
+            font-weight: 600;
+            background-color: #f8f9fa; /* 添加背景色，与订单管理表保持一致 */
+            color: #495057; /* 设置颜色，与订单管理表保持一致 */
+            position: sticky; /* 使表头固定 */
+            top: 0;
+            z-index: 10;
+        }
+        
+        /* 表格列宽度优化 */
+        .table th:first-child,
+        .table td:first-child {
+            width: 35px;
+            min-width: 35px;
+        }
+        
+        .table th.year-col,
+        .table td.year-col {
+            width: 60px;
+            min-width: 60px;
+        }
+        
+        .table th.month-col,
+        .table td.month-col {
+            width: 60px;
+            min-width: 60px;
+        }
+        
+        .table th.name-col,
+        .table td.name-col {
+            width: 90px;
+            min-width: 90px;
+        }
+        
+        .table th.salary-col,
+        .table td.salary-col {
+            width: 85px;
+            min-width: 85px;
+        }
+        
+        .table th.action-col,
+        .table td.action-col {
+            width: 90px;
+            min-width: 90px;
+        }
+        
+        /* 表格悬停效果 */
+        .table-hover tbody tr:hover {
+            background-color: rgba(52, 152, 219, 0.05);
+        }
+        
+        /* 编辑状态样式 */
+        .editable {
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .editable:hover {
+            background-color: #f0f7ff;
+        }
+        
+        .editing-cell {
+            padding: 0 !important;
+        }
+        
+        .editing-cell input,
+        .editing-cell select {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #3c8dbc;
+            border-radius: 4px;
+        }
+        
+        /* 筛选组件样式 */
+        .filter-group {
+            display: flex;
+            align-items: center;
+            margin-right: 15px;
+        }
+        
+        .filter-label {
+            margin-right: 5px;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+        
+        .filter-input {
+            padding: 3px 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        /* 筛选按钮组样式 */
+        .filter-buttons {
+            display: flex;
+            align-items: center;
+        }
+        
+        .filter-buttons .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+        
+        .filter-buttons .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+        
+        /* 工具栏样式 */
+        .toolbar {
+            margin-bottom: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        /* 自动计算字段样式 */
+        .auto-calculated {
+            background-color: #f8f9fa;
+            color: #495057;
+            font-style: italic;
+        }
+        
+        /* 分页容器样式 */
+        .pagination-container {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+        }
+        
+        /* 卡片样式 */
+        .stat-card {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 5px;
+            opacity: 0.8;
+        }
+        
+        .stat-card-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        
+        /* 提示样式 */
+        .form-text {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        /* 单位后缀样式 */
+        .unit-suffix {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            font-size: 13px;
+            pointer-events: none;
+        }
+        
+        .input-suffix-container {
+            position: relative;
+        }
+        
+        /* 表单紧凑样式 */
+        .form-group {
+            margin-bottom: 5px; /* 减小表单组底部边距 */
+        }
+        
+        .form-label {
+            margin-bottom: 1px;
+            font-size: 0.85rem;
+        }
+        
+        .form-text {
+            margin-top: 1px;
+            font-size: 0.75rem;
+        }
+        
+        /* 表单分区样式 */
+        #basic-info-section,
+        #base-salary-section,
+        #standard-salary-section,
+        #commission-section,
+        #total-salary-section {
+            margin-bottom: 15px; /* 减小分区间距 */
+        }
+        
+        .modal-body h6.fw-bold {
+            background-color: #6190af;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            margin-top: 1rem;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-weight: 600;
+        }
+        
+        /* 表格间距调整 */
+        .table-responsive {
+            margin-bottom: 0;
+        }
+        
+        /* 行间距调整 */
+        .row.g-2 {
+            --bs-gutter-y: 0.25rem; /* 减小行间距 */
+        }
+        
+        /* 模态框内容区域内边距调整 */
+        .modal-body.py-3 {
+            padding-top: 0.75rem !important;
+            padding-bottom: 0.75rem !important;
+        }
+        
+        /* 输入组样式调整 */
+        .input-group-sm > .form-control,
+        .input-group-sm > .input-group-text {
+            padding: 0.2rem 0.4rem;
+            font-size: 0.8rem;
+        }
+        
+        /* 移除平滑滚动和滚动边距，不需要锚点导航 */
+        html {
+            scroll-behavior: auto;
+        }
+        
+        /* 添加表格容器样式，使其与订单管理表一致 */
+        .table-container {
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+        }
+        
+        /* 弹窗样式优化 - 与订单管理一致 */
+        .modal-content {
+            border: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            transform-style: preserve-3d;
+            perspective: 1000px;
+            animation: modalOpen 0.3s ease-out;
+        }
+        
+        @keyframes modalOpen {
+            from {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .modal-header.bg-primary {
+            background: linear-gradient(135deg, #3498db, #2c3e50) !important;
+            padding: 1rem 1.5rem;
+            border-bottom: none;
+        }
+        
+        .modal-header .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            color: white;
+        }
+        
+        .modal-header .modal-title:before {
+            content: '\f067';
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            margin-right: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+            background-color: #f8f9fa;
+        }
+        
+        .modal-footer.bg-light {
+            border-top: none;
+            padding: 1rem 1.5rem;
+        }
+        
+        /* 编辑表单弹窗标题样式 */
+        #salaryModal .modal-title[data-mode="edit"]:before {
+            content: '\f044'; /* 编辑图标 */
+        }
+        
+        /* 按钮样式统一 */
+        .modal-footer .btn-primary {
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            border: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-weight: 500;
+            padding: 0.4rem 0.8rem;
+            transition: all 0.2s;
+        }
+        
+        .modal-footer .btn-primary:hover {
+            background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.25);
+        }
+        
+        .modal-footer .btn-secondary {
+            background: linear-gradient(135deg, #78909c 0%, #546e7a 100%);
+            border: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+            font-weight: 500;
+            padding: 0.4rem 0.8rem;
+            transition: all 0.2s;
+        }
+        
+        .modal-footer .btn-secondary:hover {
+            background: linear-gradient(135deg, #607d8b 0%, #455a64 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        /* 表单控件样式优化 */
+        .modal-body .form-control,
+        .modal-body .form-select {
+            border-radius: 6px;
+            border: 1px solid #ced4da;
+            transition: all 0.2s;
+        }
+        
+        .modal-body .form-control:focus,
+        .modal-body .form-select:focus {
+            border-color: #4dabf7;
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+        }
+        
+        .modal-body .input-group-text {
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: 0 6px 6px 0;
+        }
+        
+        .modal-body .form-label {
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 0.3rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- 页面头部 -->
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <i class="fas fa-tshirt"></i> 尚荣定制管理系统 <span style="margin-left: 15px; font-size: 20px;"><i class="fas fa-money-bill-wave"></i> 工资录入</span>
+            </div>
+            <div class="user-info">
+                <a href="index.html" class="btn btn-sm btn-outline-light me-3">
+                    <i class="fas fa-home"></i> 返回首页
+                </a>
+                <img src="user-avatar.svg" alt="用户头像">
+                <span>管理员，欢迎您！</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 导航标签 -->
+    <div class="nav-container">
+        <ul class="nav nav-tabs">
+            <li class="nav-item">
+                <a class="nav-link active" href="javascript:void(0);" data-module="salaryModule">
+                    <i class="fas fa-list"></i> 工资列表
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="javascript:void(0);" data-module="salaryStatistics">
+                    <i class="fas fa-chart-bar"></i> 工资统计
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- 内容区域容器 -->
+    <div class="container-fluid px-4">
+        <!-- 工资模块内容 -->
+        <div id="salaryModule" class="module-content">
+            <!-- 工具栏 -->
+            <div class="toolbar mb-3 mt-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <button id="addSalaryBtn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> 新增工资记录
+                    </button>
+                    <button id="copySalaryBtn" class="btn btn-secondary ms-2">
+                        <i class="fas fa-copy"></i> 复制记录
+                    </button>
+                    <button id="deleteSalaryBtn" class="btn btn-danger ms-2">
+                        <i class="fas fa-trash"></i> 删除选中
+                    </button>
+                    <button id="exportSalaryBtn" class="btn btn-success ms-2">
+                        <i class="fas fa-file-export"></i> 导出工资
+                    </button>
+                </div>
+                
+                <!-- 筛选组件 -->
+                <div class="d-flex align-items-center">
+                    <div class="filter-group me-2">
+                        <label class="filter-label">年份：</label>
+                        <select id="salaryYearFilter" class="filter-input form-select form-select-sm" style="width: 100px;">
+                            <option value="">全部</option>
+                            <!-- 年份选项由JavaScript动态生成 -->
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group me-2">
+                        <label class="filter-label">月份：</label>
+                        <select id="salaryMonthFilter" class="filter-input form-select form-select-sm" style="width: 100px;">
+                            <option value="">全部</option>
+                            <option value="1">1月</option>
+                            <option value="2">2月</option>
+                            <option value="3">3月</option>
+                            <option value="4">4月</option>
+                            <option value="5">5月</option>
+                            <option value="6">6月</option>
+                            <option value="7">7月</option>
+                            <option value="8">8月</option>
+                            <option value="9">9月</option>
+                            <option value="10">10月</option>
+                            <option value="11">11月</option>
+                            <option value="12">12月</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group me-2">
+                        <label class="filter-label">员工：</label>
+                        <input type="text" id="salaryEmployeeFilter" class="filter-input form-control form-control-sm" placeholder="员工姓名" style="width: 120px;">
+                    </div>
+                    
+                    <div class="filter-buttons">
+                        <button id="filterSalaryBtn" class="btn btn-primary btn-sm me-1">
+                            <i class="fas fa-filter"></i> 筛选
+                        </button>
+                        <button id="resetSalaryFilterBtn" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-undo"></i> 重置
+                        </button>
+                    </div>
+                    
+                    <div id="salaryFilterResultCount" class="ms-2" style="display: none;"></div>
+                </div>
+            </div>
+            
+            <!-- 工资表格 -->
+            <div class="content-container">
+                <div class="table-container">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="35">
+                                        <input type="checkbox" id="selectAllSalaries" title="全选">
+                                    </th>
+                                    <th class="year-col">年份</th>
+                                    <th class="month-col">月份</th>
+                                    <th class="name-col">员工姓名</th>
+                                    <th class="salary-col">基本工资</th>
+                                    <th class="salary-col">绩效工资</th>
+                                    <th class="salary-col">岗位工资</th>
+                                    <th class="salary-col">基础工资合计</th>
+                                    <th class="salary-col">报销金额</th>
+                                    <th class="salary-col">加班小时</th>
+                                    <th class="salary-col">加班费</th>
+                                    <th class="salary-col">请假天数</th>
+                                    <th class="salary-col">缺勤扣发</th>
+                                    <th class="salary-col">迟到次数</th>
+                                    <th class="salary-col">迟到扣发</th>
+                                    <th class="salary-col">标准工资合计</th>
+                                    <th class="salary-col">高定提成</th>
+                                    <th class="salary-col">团单提成</th>
+                                    <th class="salary-col">奖金</th>
+                                    <th class="salary-col">提成合计</th>
+                                    <th class="salary-col">应发工资</th>
+                                    <th class="action-col">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="salaryTableBody">
+                                <!-- 工资数据将由JavaScript动态生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- 分页控件 -->
+                <div id="salaryPagination" class="pagination-container"></div>
+            </div>
+        </div>
+        
+        <!-- 工资统计模块 -->
+        <div id="salaryStatistics" class="module-content" style="display: none;">
+            <!-- 统计模块筛选区域 -->
+            <div class="filter-section mb-3 mt-3 d-flex align-items-center">
+                <div class="filter-group me-3">
+                    <label class="filter-label">时间范围：</label>
+                    <select id="salaryStatsTimeRange" class="filter-input form-select form-select-sm" style="width: 120px;">
+                        <option value="year">按年</option>
+                        <option value="month" selected>按月</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group me-3">
+                    <label class="filter-label">年份：</label>
+                    <select id="salaryStatsYear" class="filter-input form-select form-select-sm" style="width: 100px;">
+                        <!-- 年份选项由JavaScript动态生成 -->
+                    </select>
+                </div>
+                
+                <div class="filter-group me-3" id="salaryStatsMonthContainer">
+                    <label class="filter-label">月份：</label>
+                    <select id="salaryStatsMonth" class="filter-input form-select form-select-sm" style="width: 100px;">
+                        <option value="">全部</option>
+                        <option value="1">1月</option>
+                        <option value="2">2月</option>
+                        <option value="3">3月</option>
+                        <option value="4">4月</option>
+                        <option value="5">5月</option>
+                        <option value="6">6月</option>
+                        <option value="7">7月</option>
+                        <option value="8">8月</option>
+                        <option value="9">9月</option>
+                        <option value="10">10月</option>
+                        <option value="11">11月</option>
+                        <option value="12">12月</option>
+                    </select>
+                </div>
+                
+                <button id="applySalaryStatsFilter" class="btn btn-primary btn-sm">
+                    <i class="fas fa-filter"></i> 应用筛选
+                </button>
+            </div>
+            
+            <!-- 统计卡片 -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #3498db, #2980b9);">
+                        <div class="stat-card-title">工资总支出</div>
+                        <div class="stat-card-value" id="totalSalaryAmount">¥0.0元</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">
+                        <div class="stat-card-title">平均工资</div>
+                        <div class="stat-card-value" id="averageSalary">¥0.0元</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #2ecc71, #27ae60);">
+                        <div class="stat-card-title">提成总额</div>
+                        <div class="stat-card-value" id="totalCommission">¥0.0元</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">
+                        <div class="stat-card-title">员工人数</div>
+                        <div class="stat-card-value" id="employeeCount">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 工资趋势图表 -->
+            <div class="content-container mb-4">
+                <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>工资支出趋势</h5>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="salaryTrendChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- 工资组成分析图表 -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="content-container">
+                        <h5 class="mb-3"><i class="fas fa-chart-pie me-2"></i>工资组成分析</h5>
+                        <div class="chart-container" style="height: 300px;">
+                            <canvas id="salaryCompositionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="content-container">
+                        <h5 class="mb-3"><i class="fas fa-chart-bar me-2"></i>员工工资对比</h5>
+                        <div class="chart-container" style="height: 300px;">
+                            <canvas id="employeeSalaryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 新增/编辑工资记录对话框 -->
+    <div class="modal fade" id="salaryModal" tabindex="-1" aria-labelledby="salaryModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary bg-gradient text-white">
+                    <h5 id="salaryModalTitle" class="modal-title fw-bold" style="color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3); font-size: 1.25rem;">新增工资记录</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <form id="salaryForm">
+                        <input type="hidden" id="salaryId">
+                        
+                        <!-- 基本信息部分 -->
+                        <div id="basic-info-section">
+                            <h6 class="mb-3 fw-bold">基本信息</h6>
+                            <div class="row g-2 mb-4">
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="salaryYear" class="form-label">年份:</label>
+                                        <select id="salaryYear" class="form-select form-select-sm" required>
+                                            <!-- 年份选项由JavaScript动态生成 -->
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="salaryMonth" class="form-label">月份:</label>
+                                        <select id="salaryMonth" class="form-select form-select-sm" required>
+                                            <option value="1">1月</option>
+                                            <option value="2">2月</option>
+                                            <option value="3">3月</option>
+                                            <option value="4">4月</option>
+                                            <option value="5">5月</option>
+                                            <option value="6">6月</option>
+                                            <option value="7">7月</option>
+                                            <option value="8">8月</option>
+                                            <option value="9">9月</option>
+                                            <option value="10">10月</option>
+                                            <option value="11">11月</option>
+                                            <option value="12">12月</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="employeeName" class="form-label">员工姓名:</label>
+                                        <input type="text" class="form-control form-control-sm" id="employeeName" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 基础工资部分 -->
+                        <div id="base-salary-section">
+                            <h6 class="mb-3 fw-bold">基础工资</h6>
+                            <div class="row g-2 mb-4">
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="basicSalary" class="form-label">基本工资:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm" id="basicSalary" step="0.1" value="3000" required>
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="performanceSalary" class="form-label">绩效工资:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm" id="performanceSalary" step="0.1" value="1000" required>
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="positionSalary" class="form-label">岗位工资:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm" id="positionSalary" step="0.1" value="1000" required>
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="baseSalaryTotal" class="form-label">基础工资合计:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm bg-light" id="baseSalaryTotal" step="0.1" value="5000" readonly>
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                        <div class="form-text">自动计算</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 标准工资部分 -->
+                        <div id="standard-salary-section">
+                            <h6 class="mb-3 fw-bold">标准工资</h6>
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">报销时间:</label>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <input type="date" class="form-control form-control-sm" id="reimbursementStartDate">
+                                            <span class="mx-1">至</span>
+                                            <input type="date" class="form-control form-control-sm" id="reimbursementEndDate">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="reimbursementAmount" class="form-label">报销金额:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm" id="reimbursementAmount" step="0.1" value="0">
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="overtimeHours" class="form-label">加班小时:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm" id="overtimeHours" step="0.1" value="0">
+                                            <span class="input-group-text">小时</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row g-2 mb-4">
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="overtimePay" class="form-label">加班费:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm bg-light" id="overtimePay" step="0.1" value="0" readonly>
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                        <div class="form-text">自动计算</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="leaveDays" class="form-label">请假天数:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm" id="leaveDays" min="0" step="1" value="0">
+                                            <span class="input-group-text">天</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="leaveDeduction" class="form-label">缺勤扣发:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm bg-light" id="leaveDeduction" step="0.1" value="0" readonly>
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                        <div class="form-text">自动计算</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="lateCount" class="form-label">迟到次数:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm" id="lateCount" min="0" step="1" value="0">
+                                            <span class="input-group-text">次</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row g-2 mb-4">
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="lateDeduction" class="form-label">迟到扣发:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm bg-light" id="lateDeduction" step="0.1" value="0" readonly>
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                        <div class="form-text">自动计算</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="standardSalaryTotal" class="form-label">标准工资合计:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm bg-light" id="standardSalaryTotal" step="0.1" value="0" readonly>
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                        <div class="form-text">自动计算</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 提成部分 -->
+                        <div id="commission-section">
+                            <h6 class="mb-3 fw-bold">提成</h6>
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="highEndCommission" class="form-label">高定提成:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm" id="highEndCommission" step="0.1" value="0">
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="groupCommission" class="form-label">团单提成:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm" id="groupCommission" step="0.1" value="0">
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="bonus" class="form-label">奖金:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm bg-light" id="bonus" step="0.1" value="0" readonly>
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                        <div class="form-text">根据当月销售额自动计算</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row g-2 mb-4">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="commissionTotal" class="form-label">提成合计:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm bg-light" id="commissionTotal" step="0.1" value="0" readonly>
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                        <div class="form-text">自动计算</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 应发工资部分 -->
+                        <div id="total-salary-section">
+                            <h6 class="mb-3 fw-bold">应发工资</h6>
+                            <div class="row g-2 mb-4">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="totalSalary" class="form-label">应发工资:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm bg-light fw-bold" id="totalSalary" step="0.1" value="5000" readonly>
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                        <div class="form-text">自动计算: 基础工资合计+标准工资合计+提成合计</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>取消
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveSalaryBtn">
+                        <i class="fas fa-save me-1"></i>保存
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 脚本引用 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
+    
+    <!-- 权限和通用脚本 (顺序很重要) -->
+    <!-- 1. 管理员权限修复脚本 (必须最先加载) -->
+    <script src="admin-fix.js"></script>
+    <!-- 2. 通用功能 -->
+    <script src="common.js"></script>
+    <!-- 3. 业务逻辑 -->
+    <script src="salary.js"></script>
+    <!-- 4. 权限检查 (必须最后加载) -->
+    <script src="user-permissions.js"></script>
+</body>
+</html> 

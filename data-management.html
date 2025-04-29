@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- 身份验证检查脚本 - 必须放在最前面 -->
+    <script src="auth-check.js"></script>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据管理 - 尚荣定制管理系统</title>
+    
+    <!-- 紧急权限覆盖 - 确保最早执行 -->
+    <script>
+        // 检查当前用户是否为管理员
+        function isAdmin() {
+            try {
+                const userInfoStr = localStorage.getItem('user_info');
+                if (!userInfoStr) return false;
+                
+                const userInfo = JSON.parse(userInfoStr);
+                return userInfo && userInfo.role === 'admin';
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        // 只有管理员才能获得权限覆盖
+        if (isAdmin()) {
+            // 紧急权限覆盖
+            window._adminEmergencyOverride = true;
+            window.adminPermissionsEnabled = true;
+            window.isAdmin = true;
+            
+            // 添加早期钩子
+            window.hasPermission = function() { return true; };
+            window.checkPermission = function() { return true; };
+            
+            console.log('页面内联管理员权限覆盖已应用');
+        }
+    </script>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.2/css/all.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link href="styles.css" rel="stylesheet">
+    <style>
+        /* 使用与首页相同的侧边栏样式 */
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --info-color: #1abc9c;
+            --dark-color: #34495e;
+            --light-color: #ecf0f1;
+            --gray-color: #95a5a6;
+            --white-color: #ffffff;
+            --sidebar-width: 250px;
+            --sidebar-collapsed-width: 70px;
+            --header-height: 60px;
+            --card-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            --transition-speed: 0.3s;
+        }
+        
+        /* 侧边栏样式 */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background-color: var(--dark-color);
+            color: var(--light-color);
+            transition: all var(--transition-speed) ease;
+            overflow-y: auto;
+            z-index: 900;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 15px;
+        }
+        
+        .sidebar-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            padding: 15px 15px 5px;
+            color: var(--gray-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+        }
+        
+        .sidebar-item {
+            position: relative;
+            margin-bottom: 2px;
+        }
+        
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: var(--light-color);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        
+        .sidebar-link:hover, 
+        .sidebar-link.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--white-color);
+            border-left: 3px solid var(--primary-color);
+        }
+        
+        .sidebar-link i {
+            margin-right: 15px;
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+        
+        .sidebar-user {
+            padding: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: auto;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #fff;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .user-details {
+            flex: 1;
+        }
+        
+        .user-name {
+            font-weight: 600;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        
+        .user-role {
+            color: var(--gray-color);
+            font-size: 0.8rem;
+            margin: 0;
+        }
+        
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 20px;
+            transition: all var(--transition-speed) ease;
+            max-width: calc(100vw - var(--sidebar-width));
+            overflow-x: hidden;
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                width: var(--sidebar-collapsed-width);
+                z-index: 1030;
+            }
+            
+            .sidebar-title,
+            .sidebar-link span,
+            .user-details {
+                display: none;
+            }
+            
+            .sidebar-link {
+                justify-content: center;
+                padding: 12px;
+            }
+            
+            .sidebar-link i {
+                margin-right: 0;
+            }
+            
+            .main-content {
+                margin-left: var(--sidebar-collapsed-width);
+                max-width: calc(100vw - var(--sidebar-collapsed-width));
+            }
+            
+            .sidebar-user {
+                display: flex;
+                justify-content: center;
+            }
+            
+            .user-avatar {
+                margin-right: 0;
+            }
+            
+            #sidebarLogoutBtn span {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 767.98px) {
+            .row > [class*='col-'] {
+                padding-right: 8px;
+                padding-left: 8px;
+            }
+            
+            .card {
+                margin-bottom: 15px;
+            }
+        }
+        
+        @media (max-width: 575.98px) {
+            .main-content {
+                padding: 15px 10px;
+            }
+            
+            .sidebar {
+                width: 0;
+            }
+            
+            .sidebar.show {
+                width: var(--sidebar-width);
+            }
+            
+            .main-content {
+                margin-left: 0;
+                max-width: 100vw;
+            }
+        }
+        
+        /* 数据管理页面特定样式 */
+        .nav-pills .nav-link.active {
+            background-color: var(--primary-color);
+        }
+        
+        .tab-content {
+            padding: 20px 0;
+        }
+        
+        .permission-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 15px 0 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .user-list-header {
+            background-color: #f8f9fa;
+            padding: 10px 15px;
+            font-weight: 600;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .user-list-item {
+            padding: 12px 15px;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
+        }
+        
+        .user-list-item:hover {
+            box-shadow: 0 3px 5px rgba(0,0,0,0.1);
+        }
+        
+        .user-level-admin {
+            color: var(--primary-color);
+        }
+        
+        .user-level-sales {
+            color: var(--secondary-color);
+        }
+        
+        .user-level-guest {
+            color: var(--warning-color);
+        }
+        
+        .permission-grid {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .permission-section {
+            margin-bottom: 20px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            padding: 15px;
+        }
+        
+        .permission-section-title {
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--dark-color);
+        }
+        
+        .permission-module {
+            margin-bottom: 15px;
+        }
+        
+        .permission-module-title {
+            font-weight: 500;
+            padding: 8px 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .permission-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .permission-options {
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边栏导航 -->
+    <div class="container-fluid p-0">
+        <div class="row g-0">
+            <!-- 侧边导航栏 -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-tshirt fa-2x me-2"></i>
+                        <h5 class="mb-0">尚荣定制管理系统</h5>
+                    </div>
+                </div>
+                
+                <div class="sidebar-title">主菜单</div>
+                <ul class="sidebar-menu">
+                    <li class="sidebar-item">
+                        <a href="index.html" class="sidebar-link">
+                            <i class="fas fa-home"></i>
+                            <span>首页</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="order.html" class="sidebar-link">
+                            <i class="fas fa-clipboard-list"></i>
+                            <span>订单管理</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="cost.html" class="sidebar-link">
+                            <i class="fas fa-money-bill"></i>
+                            <span>成本管理</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="salary.html" class="sidebar-link">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <span>工资录入</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="analysis.html" class="sidebar-link">
+                            <i class="fas fa-chart-line"></i>
+                            <span>经营分析</span>
+                        </a>
+                    </li>
+                </ul>
+                
+                <div class="sidebar-title">系统管理</div>
+                <ul class="sidebar-menu">
+                    <li class="sidebar-item">
+                        <a href="data-management.html" class="sidebar-link active">
+                            <i class="fas fa-database"></i>
+                            <span>数据管理</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="guide.html" class="sidebar-link">
+                            <i class="fas fa-question-circle"></i>
+                            <span>使用指南</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="profile.html" class="sidebar-link">
+                            <i class="fas fa-user-cog"></i>
+                            <span>个人设置</span>
+                        </a>
+                    </li>
+                </ul>
+                
+                <div class="sidebar-user mt-auto">
+                    <div class="user-info">
+                        <div class="user-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="user-details">
+                            <div class="user-name" id="sidebarUserName">加载中...</div>
+                            <div class="user-role" id="sidebarUserRole">请稍候</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-outline-light btn-sm w-100" id="sidebarLogoutBtn">
+                        <i class="fas fa-sign-out-alt me-2"></i>退出登录
+                    </button>
+                </div>
+            </aside>
+            
+            <!-- 主内容区域 -->
+            <main class="main-content">
+                <!-- 顶部标题栏 -->
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <div class="d-flex align-items-center">
+                        <button id="sidebarToggleBtn" class="btn btn-link d-md-none me-2">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <h1 class="h2">数据管理</h1>
+                    </div>
+                </div>
+                
+                <!-- 数据管理导航栏 -->
+                <ul class="nav nav-pills mb-4" id="dataManagementTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="basic-tab" data-bs-toggle="pill" data-bs-target="#basic" type="button" role="tab" aria-controls="basic" aria-selected="true">
+                            <i class="fas fa-cogs me-2"></i>基本操作
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="backup-tab" data-bs-toggle="pill" data-bs-target="#backup" type="button" role="tab" aria-controls="backup" aria-selected="false">
+                            <i class="fas fa-save me-2"></i>备份与恢复
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="check-tab" data-bs-toggle="pill" data-bs-target="#check" type="button" role="tab" aria-controls="check" aria-selected="false">
+                            <i class="fas fa-tasks me-2"></i>数据检查
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="users-tab" data-bs-toggle="pill" data-bs-target="#users" type="button" role="tab" aria-controls="users" aria-selected="false">
+                            <i class="fas fa-users me-2"></i>用户管理
+                        </button>
+                    </li>
+                </ul>
+                
+                <!-- 内容区域 -->
+                <div class="tab-content" id="dataManagementTabContent">
+                    <!-- 基本操作标签页 -->
+                    <div class="tab-pane fade show active" id="basic" role="tabpanel" aria-labelledby="basic-tab">
+                        <div class="row">
+                            <div class="col-md-12 mb-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">基本数据操作</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <div class="d-grid">
+                                                    <button class="btn btn-outline-primary">
+                                                        <i class="fas fa-download me-2"></i>导出全部数据
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <div class="d-grid">
+                                                    <button class="btn btn-outline-primary">
+                                                        <i class="fas fa-upload me-2"></i>导入数据
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="alert alert-info mt-3 mb-0">
+                                            <i class="fas fa-info-circle me-2"></i>导出数据将生成一个包含所有系统数据的压缩文件。导入数据将替换当前系统数据，请谨慎操作。
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 备份与恢复标签页 -->
+                    <div class="tab-pane fade" id="backup" role="tabpanel" aria-labelledby="backup-tab">
+                        <div class="row">
+                            <div class="col-md-12 mb-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">数据备份</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <div class="d-grid">
+                                                    <button class="btn btn-primary">
+                                                        <i class="fas fa-save me-2"></i>创建备份
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <div class="d-grid">
+                                                    <button class="btn btn-outline-primary">
+                                                        <i class="fas fa-download me-2"></i>下载备份
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="alert alert-info mt-3">
+                                            <i class="fas fa-info-circle me-2"></i>建议定期备份系统数据以防止数据丢失。
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">数据恢复</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>备份名称</th>
+                                                        <th>创建时间</th>
+                                                        <th>大小</th>
+                                                        <th>操作</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td>backup-20231120.zip</td>
+                                                        <td>2023-11-20 15:30</td>
+                                                        <td>45.2 MB</td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-outline-primary me-1">
+                                                                <i class="fas fa-undo"></i> 恢复
+                                                            </button>
+                                                            <button class="btn btn-sm btn-outline-danger">
+                                                                <i class="fas fa-trash"></i> 删除
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>backup-20231115.zip</td>
+                                                        <td>2023-11-15 10:15</td>
+                                                        <td>44.8 MB</td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-outline-primary me-1">
+                                                                <i class="fas fa-undo"></i> 恢复
+                                                            </button>
+                                                            <button class="btn btn-sm btn-outline-danger">
+                                                                <i class="fas fa-trash"></i> 删除
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 数据检查标签页 -->
+                    <div class="tab-pane fade" id="check" role="tabpanel" aria-labelledby="check-tab">
+                        <div class="row">
+                            <div class="col-md-12 mb-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">数据完整性检查</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <div class="d-grid">
+                                                    <button class="btn btn-primary">
+                                                        <i class="fas fa-check-circle me-2"></i>开始检查
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <div class="d-grid">
+                                                    <button class="btn btn-outline-primary">
+                                                        <i class="fas fa-broom me-2"></i>修复问题
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="alert alert-warning mt-3">
+                                            <i class="fas fa-exclamation-circle me-2"></i>数据检查可能需要几分钟时间，在此期间请勿关闭浏览器。
+                                        </div>
+                                        
+                                        <div class="mt-4">
+                                            <h6>检查结果:</h6>
+                                            <div class="progress mb-3">
+                                                <div class="progress-bar bg-success" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">100%</div>
+                                            </div>
+                                            <div class="alert alert-success">
+                                                <i class="fas fa-check-circle me-2"></i>所有数据检查都已通过，系统数据完整。
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 用户管理标签页 -->
+                    <div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0">用户列表</h5>
+                                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                                            <i class="fas fa-plus me-1"></i> 添加用户
+                                        </button>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row user-list-header">
+                                            <div class="col-md-3">用户名</div>
+                                            <div class="col-md-3">账号级别</div>
+                                            <div class="col-md-3">最后登录</div>
+                                            <div class="col-md-3">操作</div>
+                                        </div>
+                                        
+                                        <div class="user-list">
+                                            <!-- 管理员用户 -->
+                                            <div class="row user-list-item align-items-center">
+                                                <div class="col-md-3">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-user-shield me-2 user-level-admin"></i>
+                                                        <span>admin</span>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <span class="badge bg-primary">管理员</span>
+                                                </div>
+                                                <div class="col-md-3">2023-11-25 10:30</div>
+                                                <div class="col-md-3">
+                                                    <button class="btn btn-sm btn-outline-primary me-1" onclick="editUser('admin')">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-success me-1" onclick="viewPermissions('admin')">
+                                                        <i class="fas fa-key"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteUser('admin')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- 销售员用户 -->
+                                            <div class="row user-list-item align-items-center">
+                                                <div class="col-md-3">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-user-tie me-2 user-level-sales"></i>
+                                                        <span>sales1</span>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <span class="badge bg-success">销售员</span>
+                                                </div>
+                                                <div class="col-md-3">2023-11-24 09:15</div>
+                                                <div class="col-md-3">
+                                                    <button class="btn btn-sm btn-outline-primary me-1" onclick="editUser('sales1')">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-success me-1" onclick="viewPermissions('sales1')">
+                                                        <i class="fas fa-key"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteUser('sales1')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- 游客用户 -->
+                                            <div class="row user-list-item align-items-center">
+                                                <div class="col-md-3">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-user me-2 user-level-guest"></i>
+                                                        <span>guest</span>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <span class="badge bg-warning text-dark">游客</span>
+                                                </div>
+                                                <div class="col-md-3">2023-11-23 14:45</div>
+                                                <div class="col-md-3">
+                                                    <button class="btn btn-sm btn-outline-primary me-1" onclick="editUser('guest')">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-success me-1" onclick="viewPermissions('guest')">
+                                                        <i class="fas fa-key"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteUser('guest')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- 添加用户模态框 -->
+    <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addUserModalLabel">添加用户</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addUserForm">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">用户名</label>
+                            <input type="text" class="form-control" id="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">密码</label>
+                            <input type="password" class="form-control" id="password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">确认密码</label>
+                            <input type="password" class="form-control" id="confirmPassword" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="userLevel" class="form-label">账号级别</label>
+                            <select class="form-select" id="userLevel" required>
+                                <option value="admin">管理员</option>
+                                <option value="sales" selected>销售员</option>
+                                <option value="guest">游客</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveUserBtn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 查看权限模态框 -->
+    <div class="modal fade" id="permissionsModal" tabindex="-1" aria-labelledby="permissionsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="permissionsModalLabel">用户权限设置</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="permission-grid">
+                        <!-- 订单管理模块 -->
+                        <div class="permission-section">
+                            <div class="permission-section-title">订单管理模块</div>
+                            
+                            <div class="permission-module">
+                                <div class="permission-module-title">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="orderModule" checked>
+                                        <label class="form-check-label" for="orderModule">
+                                            启用订单管理模块
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <!-- 订单列表子模块 -->
+                                    <div class="col-md-6 mb-3">
+                                        <div class="permission-item">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="orderList" checked>
+                                                <label class="form-check-label" for="orderList">
+                                                    订单列表
+                                                </label>
+                                            </div>
+                                            
+                                            <div class="permission-options">
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="orderList_view" checked>
+                                                    <label class="form-check-label" for="orderList_view">查看</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="orderList_add" checked>
+                                                    <label class="form-check-label" for="orderList_add">新增</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="orderList_edit" checked>
+                                                    <label class="form-check-label" for="orderList_edit">编辑</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="orderList_delete" checked>
+                                                    <label class="form-check-label" for="orderList_delete">删除</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="orderList_export" checked>
+                                                    <label class="form-check-label" for="orderList_export">导出</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 订单统计子模块 -->
+                                    <div class="col-md-6 mb-3">
+                                        <div class="permission-item">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="orderStats" checked>
+                                                <label class="form-check-label" for="orderStats">
+                                                    订单统计
+                                                </label>
+                                            </div>
+                                            
+                                            <div class="permission-options">
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="orderStats_view" checked>
+                                                    <label class="form-check-label" for="orderStats_view">查看</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="orderStats_export" checked>
+                                                    <label class="form-check-label" for="orderStats_export">导出</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 工资录入模块 -->
+                        <div class="permission-section">
+                            <div class="permission-section-title">工资录入模块</div>
+                            
+                            <div class="permission-module">
+                                <div class="permission-module-title">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="salaryModule" checked>
+                                        <label class="form-check-label" for="salaryModule">
+                                            启用工资录入模块
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <!-- 工资列表子模块 -->
+                                    <div class="col-md-6 mb-3">
+                                        <div class="permission-item">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="salaryList" checked>
+                                                <label class="form-check-label" for="salaryList">
+                                                    工资列表
+                                                </label>
+                                            </div>
+                                            
+                                            <div class="permission-options">
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="salaryList_view" checked>
+                                                    <label class="form-check-label" for="salaryList_view">查看</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="salaryList_add" checked>
+                                                    <label class="form-check-label" for="salaryList_add">新增</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="salaryList_edit" checked>
+                                                    <label class="form-check-label" for="salaryList_edit">编辑</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="salaryList_delete" checked>
+                                                    <label class="form-check-label" for="salaryList_delete">删除</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="salaryList_export" checked>
+                                                    <label class="form-check-label" for="salaryList_export">导出</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 工资统计子模块 -->
+                                    <div class="col-md-6 mb-3">
+                                        <div class="permission-item">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="salaryStats" checked>
+                                                <label class="form-check-label" for="salaryStats">
+                                                    工资统计
+                                                </label>
+                                            </div>
+                                            
+                                            <div class="permission-options">
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="salaryStats_view" checked>
+                                                    <label class="form-check-label" for="salaryStats_view">查看</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="salaryStats_export" checked>
+                                                    <label class="form-check-label" for="salaryStats_export">导出</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 成本管理模块 -->
+                        <div class="permission-section">
+                            <div class="permission-section-title">成本管理模块</div>
+                            
+                            <div class="permission-module">
+                                <div class="permission-module-title">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="costModule">
+                                        <label class="form-check-label" for="costModule">
+                                            启用成本管理模块
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <!-- 其他子模块按照类似方式添加 -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 经营分析模块 -->
+                        <div class="permission-section">
+                            <div class="permission-section-title">经营分析模块</div>
+                            
+                            <div class="permission-module">
+                                <div class="permission-module-title">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="analysisModule">
+                                        <label class="form-check-label" for="analysisModule">
+                                            启用经营分析模块
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <!-- 其他子模块按照类似方式添加 -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 数据管理模块 -->
+                        <div class="permission-section">
+                            <div class="permission-section-title">数据管理模块</div>
+                            
+                            <div class="permission-module">
+                                <div class="permission-module-title">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="dataModule">
+                                        <label class="form-check-label" for="dataModule">
+                                            启用数据管理模块
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <!-- 其他子模块按照类似方式添加 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="savePermissionsBtn">保存权限设置</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <script>
+        // 检查用户是否已登录
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查登录状态
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // 显示用户信息
+            const userInfoStr = localStorage.getItem('user_info');
+            if (userInfoStr) {
+                try {
+                    const userInfo = JSON.parse(userInfoStr);
+                    // 侧边栏用户信息
+                    document.getElementById('sidebarUserName').textContent = userInfo.name || userInfo.username;
+                    document.getElementById('sidebarUserRole').textContent = userInfo.role === 'admin' ? '管理员' : '普通用户';
+                } catch (e) {
+                    console.error('解析用户信息失败', e);
+                }
+            }
+            
+            // 退出登录
+            document.getElementById('sidebarLogoutBtn').addEventListener('click', function() {
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('user_info');
+                window.location.href = 'login.html';
+            });
+            
+            // 侧边栏切换按钮
+            const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+            const sidebar = document.querySelector('.sidebar');
+            
+            if (sidebarToggleBtn && sidebar) {
+                sidebarToggleBtn.addEventListener('click', function() {
+                    sidebar.classList.toggle('show');
+                });
+            }
+        });
+
+        // 用户管理相关功能
+        window.editUser = function(username) {
+            // 打开添加用户模态框，但用于编辑
+            const modal = new bootstrap.Modal(document.getElementById('addUserModal'));
+            
+            // 设置模态框标题和按钮文字
+            document.getElementById('addUserModalLabel').textContent = '编辑用户: ' + username;
+            document.getElementById('saveUserBtn').textContent = '保存修改';
+            
+            // 获取用户信息（实际应用中应从后端API获取）
+            let userData = {
+                username: username,
+                password: '********', // 出于安全考虑不显示真实密码
+                level: 'guest'
+            };
+            
+            // 根据用户名设置不同角色
+            if (username === 'admin') {
+                userData.level = 'admin';
+            } else if (username === 'sales1') {
+                userData.level = 'sales';
+            }
+            
+            // 填充表单数据
+            document.getElementById('username').value = userData.username;
+            document.getElementById('username').setAttribute('readonly', true); // 用户名不可修改
+            document.getElementById('password').value = '';
+            document.getElementById('password').placeholder = '不修改请留空';
+            document.getElementById('password').required = false;
+            document.getElementById('confirmPassword').value = '';
+            document.getElementById('confirmPassword').placeholder = '不修改请留空';
+            document.getElementById('confirmPassword').required = false;
+            document.getElementById('userLevel').value = userData.level;
+            
+            // 修改保存按钮的点击事件处理
+            document.getElementById('saveUserBtn').onclick = function() {
+                const newLevel = document.getElementById('userLevel').value;
+                const newPassword = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+                
+                // 如果要修改密码，先验证
+                if (newPassword) {
+                    if (newPassword !== confirmPassword) {
+                        alert('两次输入的密码不一致');
+                        return;
+                    }
+                }
+                
+                // 保存用户修改（实际应用中应调用后端API）
+                alert('用户 ' + username + ' 的信息已更新');
+                
+                // 关闭模态框
+                modal.hide();
+                
+                // 重置模态框为添加用户模式
+                resetAddUserModal();
+            };
+            
+            modal.show();
+        }
+        
+        function resetAddUserModal() {
+            // 重置模态框为添加用户模式
+            document.getElementById('addUserModalLabel').textContent = '添加用户';
+            document.getElementById('saveUserBtn').textContent = '保存';
+            
+            document.getElementById('username').removeAttribute('readonly');
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('password').placeholder = '';
+            document.getElementById('password').required = true;
+            document.getElementById('confirmPassword').value = '';
+            document.getElementById('confirmPassword').placeholder = '';
+            document.getElementById('confirmPassword').required = true;
+            document.getElementById('userLevel').value = 'sales';
+            
+            // 恢复默认保存按钮行为
+            document.getElementById('saveUserBtn').onclick = function() {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+                const userLevel = document.getElementById('userLevel').value;
+                
+                // 简单验证
+                if (!username || !password || !confirmPassword) {
+                    alert('请填写所有必填字段');
+                    return;
+                }
+                
+                if (password !== confirmPassword) {
+                    alert('两次输入的密码不一致');
+                    return;
+                }
+                
+                // 创建用户
+                alert('用户创建成功');
+                
+                // 关闭模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addUserModal'));
+                modal.hide();
+            };
+        }
+        
+        // 监听模态框关闭事件，重置为添加用户模式
+        document.getElementById('addUserModal').addEventListener('hidden.bs.modal', function() {
+            resetAddUserModal();
+        });
+        
+        function viewPermissions(username) {
+            // 打开权限设置模态框
+            const modal = new bootstrap.Modal(document.getElementById('permissionsModal'));
+            
+            // 设置模态框标题
+            document.getElementById('permissionsModalLabel').textContent = '用户权限: ' + username;
+            
+            // 根据用户名预设不同权限
+            let userPermissions = {
+                // 默认权限（普通用户）
+                orderManagement: {
+                    view: true,
+                    add: false,
+                    edit: false,
+                    delete: false
+                },
+                salaryEntry: {
+                    view: true,
+                    add: false,
+                    edit: false
+                },
+                costManagement: {
+                    view: true,
+                    edit: false
+                },
+                analysis: {
+                    view: true
+                },
+                dataManagement: {
+                    backup: false,
+                    restore: false,
+                    check: true
+                }
+            };
+            
+            // 根据不同用户设置不同权限
+            if (username === 'admin') {
+                // 管理员拥有所有权限
+                Object.keys(userPermissions).forEach(function(module) {
+                    Object.keys(userPermissions[module]).forEach(function(permission) {
+                        userPermissions[module][permission] = true;
+                    });
+                });
+            } else if (username === 'sales1') {
+                // 销售人员权限
+                userPermissions.orderManagement.add = true;
+                userPermissions.orderManagement.edit = true;
+                userPermissions.salaryEntry.add = true;
+            }
+            
+            // 填充权限复选框
+            fillPermissionCheckboxes(userPermissions);
+            
+            // 设置保存按钮的点击事件
+            document.getElementById('savePermissionsBtn').onclick = function() {
+                // 收集权限设置
+                const newPermissions = collectPermissionSettings();
+                
+                // 保存权限到localStorage
+                localStorage.setItem(`user_permissions_${username}`, JSON.stringify(newPermissions));
+                
+                // 提示用户
+                alert('用户 ' + username + ' 的权限已更新');
+                
+                // 关闭模态框
+                modal.hide();
+            };
+            
+            modal.show();
+        }
+        
+        function fillPermissionCheckboxes(permissions) {
+            // 填充订单管理权限 
+            // 注意：使用orderList_view等ID而不是order-view
+            document.getElementById('orderList_view').checked = permissions.orderManagement.view;
+            document.getElementById('orderList_add').checked = permissions.orderManagement.add;
+            document.getElementById('orderList_edit').checked = permissions.orderManagement.edit;
+            document.getElementById('orderList_delete').checked = permissions.orderManagement.delete;
+            
+            // 填充工资录入权限
+            document.getElementById('salaryList_view').checked = permissions.salaryEntry.view;
+            document.getElementById('salaryList_add').checked = permissions.salaryEntry.add;
+            document.getElementById('salaryList_edit').checked = permissions.salaryEntry.edit;
+            
+            // 填充成本管理模块
+            document.getElementById('costModule').checked = permissions.costManagement.view;
+            
+            // 填充分析模块
+            document.getElementById('analysisModule').checked = permissions.analysis.view;
+            
+            // 填充数据管理模块权限
+            document.getElementById('dataModule').checked = permissions.dataManagement.check || 
+                                                       permissions.dataManagement.backup || 
+                                                       permissions.dataManagement.restore;
+        }
+        
+        function collectPermissionSettings() {
+            // 收集所有权限设置
+            const hasOrderModule = document.getElementById('orderModule').checked;
+            const hasSalaryModule = document.getElementById('salaryModule').checked;
+            const hasCostModule = document.getElementById('costModule').checked;
+            const hasAnalysisModule = document.getElementById('analysisModule').checked;
+            const hasDataModule = document.getElementById('dataModule').checked;
+            
+            // 构建完整的权限对象
+            const permissions = {
+                orderManagement: {
+                    view: document.getElementById('orderList_view').checked && hasOrderModule,
+                    add: document.getElementById('orderList_add').checked && hasOrderModule,
+                    edit: document.getElementById('orderList_edit').checked && hasOrderModule,
+                    delete: document.getElementById('orderList_delete').checked && hasOrderModule
+                },
+                salaryEntry: {
+                    view: document.getElementById('salaryList_view').checked && hasSalaryModule,
+                    add: document.getElementById('salaryList_add').checked && hasSalaryModule,
+                    edit: document.getElementById('salaryList_edit').checked && hasSalaryModule
+                },
+                costManagement: {
+                    view: hasCostModule,
+                    edit: hasCostModule
+                },
+                analysis: {
+                    view: hasAnalysisModule
+                },
+                dataManagement: {
+                    backup: hasDataModule,
+                    restore: hasDataModule,
+                    check: hasDataModule
+                }
+            };
+            
+            return permissions;
+        }
+        
+        function deleteUser(username) {
+            if (username === 'admin') {
+                alert('管理员账户不可删除');
+                return;
+            }
+            
+            if (confirm('确定要删除用户 ' + username + ' 吗？此操作不可逆。')) {
+                // 实际应用中应调用后端API删除用户
+                alert('用户 ' + username + ' 已删除');
+                // 刷新用户列表（实际应用中应重新获取用户列表）
+            }
+        }
+    </script>
+    
+    <!-- 权限和通用脚本 (顺序很重要) -->
+    <!-- 1. 管理员权限修复脚本 (必须最先加载) -->
+    <script src="admin-fix.js"></script>
+    <!-- 2. 通用功能 -->
+    <script src="common.js"></script>
+    <!-- 3. 业务逻辑 -->
+    <script src="data.js"></script>
+    <!-- 权限修复脚本 -->
+    <script src="data-management-fix.js"></script>
+    <!-- 4. 权限检查 (必须最后加载) -->
+    <script src="user-permissions.js"></script>
+</body>
+</html>

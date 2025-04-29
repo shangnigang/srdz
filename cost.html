@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- 身份验证检查脚本 - 必须放在最前面 -->
+    <script src="auth-check.js"></script>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>尚睿定制管理系统 - 成本管理</title>
+    
+    <!-- 紧急权限覆盖 - 确保最早执行 -->
+    <script>
+        // 检查当前用户是否为管理员
+        function isAdmin() {
+            try {
+                const userInfoStr = localStorage.getItem('user_info');
+                if (!userInfoStr) return false;
+                
+                const userInfo = JSON.parse(userInfoStr);
+                return userInfo && userInfo.role === 'admin';
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        // 只有管理员才能获得权限覆盖
+        if (isAdmin()) {
+            // 紧急权限覆盖
+            window._adminEmergencyOverride = true;
+            window.adminPermissionsEnabled = true;
+            window.isAdmin = true;
+            
+            // 添加早期钩子
+            window.hasPermission = function() { return true; };
+            window.checkPermission = function() { return true; };
+            
+            console.log('页面内联管理员权限覆盖已应用');
+        }
+    </script>
+    
+    <!-- 预加载资源 -->
+    <link rel="preload" href="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js" as="script">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js" as="script">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.3.1/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <!-- Font Awesome 图标库 -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet" crossorigin="anonymous">
+    
+    <!-- 数据生成器脚本，已移除 -->
+    
+    <style>
+        /* 通用样式 */
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        /* 成本统计模块 - 放大样式 */
+        #costStatistics {
+            font-size: 1.05rem; /* 整体放大字体 */
+        }
+        
+        #costStatistics h4 {
+            font-size: 1.6rem; /* 放大标题 */
+            font-weight: 600;
+        }
+        
+        /* 卡片样式增强 */
+        #costStatistics .card {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            border-radius: 6px;
+            margin-bottom: 1.2rem; /* 增加卡片间距 */
+            overflow: hidden;
+        }
+        
+        #costStatistics .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+        }
+        
+        /* 改进指标卡片样式 */
+        #costStatistics .card-body h5 {
+            font-size: 1.6rem; /* 放大指标数值 */
+            font-weight: 700;
+        }
+        
+        #costStatistics .card-body h6 {
+            font-size: 0.95rem; /* 放大标题 */
+            font-weight: 500;
+        }
+        
+        /* 图标容器放大 */
+        #costStatistics .card-body .rounded {
+            width: 42px; /* 设置固定宽度 */
+            height: 42px; /* 设置固定高度 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #costStatistics .card-body .rounded i {
+            font-size: 1.2rem; /* 放大图标 */
+        }
+        
+        /* 筛选组件样式 */
+        #costStatistics .form-control, 
+        #costStatistics .form-select {
+            height: calc(1.6em + 0.75rem + 2px); /* 增加表单高度 */
+            font-size: 0.95rem;
+        }
+        
+        #costStatistics .btn {
+            padding: 0.375rem 0.75rem; /* 调整按钮大小 */
+            font-size: 0.95rem;
+        }
+        
+        /* 图表容器样式 */
+        #costStatistics .card .card-body {
+            padding: 1.25rem; /* 增加内边距 */
+        }
+        
+        #costStatistics .card .card-header {
+            padding: 0.75rem 1.25rem; /* 增加卡片头部内边距 */
+            font-weight: 600;
+        }
+        
+        #costStatistics .card .card-header h6 {
+            font-size: 1.1rem; /* 放大图表标题 */
+            font-weight: 600;
+        }
+        
+        /* 调整图表高度 */
+        #costStatistics canvas {
+            height: 250px !important; /* 增加图表高度 */
+        }
+        
+        /* 导航栏样式调整 */
+        .nav-link {
+            padding: 0.6rem 1rem; /* 增加导航链接内边距 */
+            font-size: 1.05rem; /* 增加导航链接字体大小 */
+        }
+        
+        /* 基础样式 */
+        body {
+            margin: 0;
+            padding: 0;
+            color: #333;
+            min-height: 100vh;
+        }
+        
+        /* 表格统一样式 */
+        .table {
+            font-size: 13px;
+            width: 100%;
+            margin-bottom: 1rem;
+            color: #333;
+            border-collapse: collapse;
+        }
+        
+        .table tr {
+            height: 42px; /* 增加行高，从36px改为42px */
+            vertical-align: middle; /* 垂直居中 */
+        }
+        
+        .table td, .table th {
+            padding: 8px 10px; /* 增加单元格内边距，从5px 8px改为8px 10px */
+            line-height: 1.3; /* 增加行间距，从1.1改为1.3 */
+            border-top: 1px solid #dee2e6;
+            white-space: nowrap; /* 防止内容换行 */
+        }
+        
+        /* 防止日期列换行 */
+        .table td:nth-child(2) {
+            white-space: nowrap !important;
+            min-width: 120px !important;
+        }
+        
+        /* 限制备注列长度 */
+        .table td:last-child {
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        /* 表格编辑状态样式 */
+        .editable {
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .editable:hover {
+            background-color: #f0f7ff;
+            cursor: pointer;
+        }
+        
+        .editing-cell {
+            padding: 0 !important;
+        }
+        
+        /* 编辑状态样式 */
+        .editing-cell input,
+        .editing-cell select {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #3c8dbc;
+            border-radius: 4px;
+        }
+        
+        /* 页眉样式 */
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 15px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo i {
+            margin-right: 10px;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-info img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        
+        /* 导航栏样式 */
+        .nav-container {
+            background-color: #fff;
+            border-bottom: 1px solid #e9ecef;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-top: 0; /* 移除顶部空隙 */
+        }
+        
+        .nav-tabs {
+            border-bottom: none;
+            padding: 0 20px;
+            margin-top: 0; /* 确保无顶部边距 */
+        }
+        
+        .nav-tabs .nav-link {
+            border: none;
+            color: #495057;
+            font-weight: 500;
+            padding: 12px 16px;
+            margin-right: 5px;
+            transition: all 0.3s;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            color: #3498db;
+            background-color: rgba(52, 152, 219, 0.05);
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: #3498db;
+            border-bottom: 3px solid #3498db;
+            background-color: transparent;
+        }
+        
+        /* 子模块切换按钮 */
+        .submodule-nav {
+            margin: 0 0 5px 0; /* 将顶部边距改为0 */
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 5px;
+        }
+        
+        .submodule-btn {
+            margin-right: 10px;
+            border: none;
+            padding: 8px 16px;
+            font-weight: 500;
+            color: #6c757d;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+        
+        /* 生产成本标签 */
+        .submodule-btn[data-sub-module="productionCost"] {
+            background-color: #e8f4ff;
+        }
+        
+        /* 运营成本标签 */
+        .submodule-btn[data-sub-module="operatingCost"] {
+            background-color: #e8fff0;
+        }
+        
+        /* 广告成本标签 */
+        .submodule-btn[data-sub-module="adCost"] {
+            background-color: #fff5e8;
+        }
+        
+        /* 标签悬停效果 */
+        .submodule-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* 标签激活状态 */
+        .submodule-btn.active {
+            color: white;
+        }
+        
+        /* 生产成本标签激活状态 */
+        .submodule-btn[data-sub-module="productionCost"].active {
+            background-color: #3498db;
+        }
+        
+        /* 运营成本标签激活状态 */
+        .submodule-btn[data-sub-module="operatingCost"].active {
+            background-color: #2ecc71;
+        }
+        
+        /* 广告成本标签激活状态 */
+        .submodule-btn[data-sub-module="adCost"].active {
+            background-color: #f39c12;
+        }
+        
+        /* 按钮动态效果 */
+        .btn {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* 内容容器 */
+        .content-container {
+            padding: 15px 25px; /* 减少上下内边距 */
+            background-color: #ffffff;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+            margin: 10px 20px; /* 减少顶部外边距 */
+            width: calc(100% - 40px);
+            overflow-x: auto;
+        }
+        
+        /* 工具栏 */
+        .toolbar {
+            margin-top: 5px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        /* 表格样式 */
+        .table {
+            width: 100%;
+            margin-bottom: 1rem;
+            color: #212529;
+            border-collapse: collapse;
+        }
+        
+        .table th,
+        .table td {
+            padding: 0.75rem;
+            vertical-align: middle;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        /* 紧凑型表格样式 */
+        .table-sm th,
+        .table-sm td {
+            padding: 6px 8px; /* 增加内边距，从4px 5px改为6px 8px */
+            vertical-align: middle;
+        }
+        
+        .table thead th {
+            vertical-align: bottom;
+            border-bottom: 2px solid #dee2e6;
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            padding: 8px 10px; /* 增加表头内边距，从6px 8px改为8px 10px */
+            height: 44px; /* 添加表头高度 */
+        }
+        
+        .table tbody tr:hover {
+            background-color: rgba(0,123,255,0.05);
+        }
+        
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(0,0,0,0.02);
+        }
+        
+        /* 紧凑型表格行样式 */
+        .compact-table tbody tr {
+            line-height: 1.3; /* 增加行间距，从1.1改为1.3 */
+            height: 40px; /* 增加紧凑型表格的行高 */
+        }
+        
+        /* 分页控件 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            margin-bottom: 0;
+        }
+        
+        .pagination a {
+            color: #3c8dbc;
+            padding: 8px 16px;
+        }
+        
+        .pagination a.active {
+            background-color: #3c8dbc;
+            color: white;
+            border: 1px solid #3c8dbc;
+        }
+        
+        .pagination a:hover:not(.active) {
+            background-color: #ddd;
+        }
+        
+        /* 分页信息样式 */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .pagination-info {
+            font-size: 14px;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            height: 38px; /* 与分页按钮高度一致 */
+        }
+        
+        /* 筛选器样式 */
+        .filter-section {
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .filter-group {
+            display: flex;
+            align-items: center;
+            margin-right: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-label {
+            margin-right: 8px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        .filter-input {
+            padding: 5px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            margin-right: 5px;
+        }
+        
+        /* 数据统计卡片样式 - 与经营分析模块一致 */
+        .stat-cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .stat-card:nth-child(1) {
+            background: linear-gradient(135deg, #2193b0, #6dd5ed);
+        }
+        
+        .stat-card:nth-child(2) {
+            background: linear-gradient(135deg, #834d9b, #d04ed6);
+        }
+        
+        .stat-card:nth-child(3) {
+            background: linear-gradient(135deg, #1d976c, #93f9b9);
+        }
+        
+        .stat-card:nth-child(4) {
+            background: linear-gradient(135deg, #eb3349, #f45c43);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(-100%);
+            transition: transform 0.5s ease;
+        }
+        
+        .stat-card:hover::before {
+            transform: translateX(100%);
+        }
+        
+        .stat-card-info {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .stat-card-title {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        .stat-card-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            line-height: 1.2;
+            margin-bottom: 3px;
+        }
+        
+        .stat-card-trend {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .stat-card-icon {
+            color: rgba(255, 255, 255, 0.7);
+            position: relative;
+            z-index: 2;
+        }
+        
+        .stat-card-icon i {
+            font-size: 2rem;
+        }
+        
+        /* 数据表展示 */
+        .cost-table-wrapper {
+            overflow-x: auto;
+            margin-bottom: 20px;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        /* 表格容器 */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* 生产成本表格特殊样式 */
+        #productionCostContent .cost-table-wrapper {
+            width: 100%;
+        }
+        
+        /* 运营成本和广告成本表格内容区域 */
+        #operatingCostContent .col-md-6,
+        #adCostContent .col-md-6 {
+            padding-right: 10px;
+        }
+        
+        /* 图表容器 */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+        }
+        
+        /* 筛选按钮组样式 */
+        .filter-buttons {
+            display: flex;
+            align-items: center;
+        }
+        
+        .filter-buttons .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+        
+        .filter-buttons .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        /* 全局样式 */
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background-color: #f5f5f5;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* 弹窗样式优化 - 与订单管理一致 */
+        .modal-content {
+            border: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            transform-style: preserve-3d;
+            perspective: 1000px;
+            animation: modalOpen 0.3s ease-out;
+        }
+
+        @keyframes modalOpen {
+            from {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-header.bg-primary {
+            background: linear-gradient(135deg, #3498db, #2c3e50) !important;
+            padding: 1rem 1.5rem;
+            border-bottom: none;
+        }
+
+        .modal-header .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            color: white;
+        }
+
+        .modal-header .modal-title:before {
+            content: '\f067';
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            margin-right: 8px;
+            font-size: 0.9rem;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            background-color: #f8f9fa;
+        }
+
+        .modal-footer.bg-light {
+            border-top: none;
+            padding: 1rem 1.5rem;
+        }
+
+        /* 编辑表单弹窗标题样式 */
+        #costFormModal .modal-title[data-mode="edit"]:before {
+            content: '\f044'; /* 编辑图标 */
+        }
+
+        /* 按钮样式统一 */
+        .modal-footer .btn-primary {
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            border: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-weight: 500;
+            padding: 0.4rem 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .modal-footer .btn-primary:hover {
+            background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.25);
+        }
+
+        .modal-footer .btn-secondary {
+            background: linear-gradient(135deg, #78909c 0%, #546e7a 100%);
+            border: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+            font-weight: 500;
+            padding: 0.4rem 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .modal-footer .btn-secondary:hover {
+            background: linear-gradient(135deg, #607d8b 0%, #455a64 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        /* 表单控件样式优化 */
+        .modal-body .form-control,
+        .modal-body .form-select {
+            border-radius: 6px;
+            border: 1px solid #ced4da;
+            transition: all 0.2s;
+        }
+
+        .modal-body .form-control:focus,
+        .modal-body .form-select:focus {
+            border-color: #4dabf7;
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+        }
+
+        .modal-body .input-group-text {
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: 0 6px 6px 0;
+        }
+
+        .modal-body .form-label {
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 0.3rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- 页面头部 -->
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <i class="fas fa-tshirt"></i> 尚荣定制管理系统 <span style="margin-left: 15px; font-size: 20px;"><i class="fas fa-calculator"></i> 成本管理</span>
+            </div>
+            <div class="user-info">
+                <a href="index.html" class="btn btn-sm btn-outline-light me-3">
+                    <i class="fas fa-home"></i> 返回首页
+                </a>
+                <img src="user-avatar.svg" alt="用户头像">
+                <span>管理员，欢迎您！</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 导航标签 -->
+    <div class="nav-container">
+        <ul class="nav nav-tabs">
+            <li class="nav-item">
+                <a class="nav-link active" href="javascript:void(0);" data-module="costModule">
+                    <i class="fas fa-list"></i> 成本列表
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="javascript:void(0);" data-module="costStatistics">
+                    <i class="fas fa-chart-bar"></i> 成本统计
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- 内容区域容器 -->
+    <div class="content-container">
+        <!-- 成本模块内容 -->
+        <div id="costModule" class="module-content">
+            <!-- 导航标签 -->
+            <div class="submodule-nav mb-2 d-flex justify-content-between align-items-center">
+                <div class="d-flex">
+                    <button class="btn btn-outline-primary submodule-btn active" data-sub-module="productionCost">生产成本</button>
+                    <button class="btn btn-outline-primary submodule-btn" data-sub-module="operatingCost">运营成本</button>
+                    <button class="btn btn-outline-primary submodule-btn" data-sub-module="adCost">广告成本</button>
+                </div>
+                
+                <div class="d-flex align-items-center">
+                    <div class="filter-group me-2">
+                        <label class="filter-label">时间范围：</label>
+                        <input type="date" id="costStartDate" class="filter-input" />
+                        <span>至</span>
+                        <input type="date" id="costEndDate" class="filter-input" />
+                    </div>
+                    
+                    <div class="filter-group me-2">
+                        <label class="filter-label">成本项目：</label>
+                        <select id="costSearchField" class="filter-input">
+                            <option value="">-- 全部项目 --</option>
+                            <optgroup id="productionCostItems" label="生产成本项目">
+                                <option value="面料费">面料费</option>
+                                <option value="加工费">加工费</option>
+                                <option value="快递费">快递费</option>
+                                <option value="修改费">修改费</option>
+                                <option value="销售提成">销售提成</option>
+                            </optgroup>
+                            <optgroup id="operatingCostItems" label="运营成本项目">
+                                <option value="房租">房租</option>
+                                <option value="物业">物业</option>
+                                <option value="水费">水费</option>
+                                <option value="电费">电费</option>
+                                <option value="工资">工资</option>
+                                <option value="停车费">停车费</option>
+                                <option value="杂费">杂费</option>
+                            </optgroup>
+                            <optgroup id="adCostItems" label="广告成本项目">
+                                <option value="小红书">小红书</option>
+                                <option value="抖音">抖音</option>
+                                <option value="地图">地图</option>
+                                <option value="快手">快手</option>
+                                <option value="视频号">视频号</option>
+                                <option value="美团">美团</option>
+                                <option value="其他">其他</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-buttons">
+                        <button id="filterCostBtn" class="btn btn-primary btn-sm me-1">
+                            <i class="fas fa-filter"></i> 筛选
+                        </button>
+                        <button id="resetCostFilterBtn" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-undo"></i> 重置
+                        </button>
+                    </div>
+                    
+                    <div id="costFilterResultCount" class="ms-2" style="display: none;"></div>
+                </div>
+            </div>
+            
+            <!-- 工具栏 -->
+            <div class="toolbar mb-2">
+                <button id="addCostBtn" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> 新增成本
+                </button>
+                <button id="copyCostBtn" class="btn btn-secondary">
+                    <i class="fas fa-copy"></i> 复制成本
+                </button>
+                <button id="deleteCostBtn" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> 删除选中
+                </button>
+                <button id="exportCostBtn" class="btn btn-success">
+                    <i class="fas fa-file-export"></i> 导出成本
+                </button>
+            </div>
+            
+            <!-- 生产成本表格 -->
+            <div id="productionCostContent" class="cost-content">
+                <div class="cost-table-wrapper">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm compact-table">
+                            <thead>
+                                <tr>
+                                    <th width="35">
+                                        <input type="checkbox" id="selectAllProductionCost" title="全选" />
+                                    </th>
+                                    <th width="100">成交日期</th>
+                                    <th width="100">客户姓名</th>
+                                    <th width="100">面料品牌</th>
+                                    <th width="100">面料编号</th>
+                                    <th width="70">用料</th>
+                                    <th width="100">配置</th>
+                                    <th width="100">厂家</th>
+                                    <th width="90">总价格</th>
+                                    <th width="90">总生产成本</th>
+                                    <th width="90">毛利润</th>
+                                    <th width="90">面料费</th>
+                                    <th width="90">加工费</th>
+                                    <th width="90">快递费</th>
+                                    <th width="90">修改费</th>
+                                    <th width="90">销售提成</th>
+                                    <th width="120">备注</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productionCostTableBody">
+                                <!-- 表格内容将由 JavaScript 动态生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- 分页控件 -->
+                <div id="productionCostPagination" class="pagination-container"></div>
+            </div>
+            
+            <!-- 运营成本表格 -->
+            <div id="operatingCostContent" class="cost-content" style="display: none;">
+                <div class="row">
+                    <div class="col-md-5 mb-3">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-light py-2">
+                                <h6 class="card-title mb-0">运营成本趋势图</h6>
+                            </div>
+                            <div class="card-body p-2" style="height: 380px;"> <!-- 设置固定高度 -->
+                                <canvas id="operatingCostChart" style="height: 100%;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-7 mb-3">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-light py-2">
+                                <h6 class="card-title mb-0">运营成本数据</h6>
+                            </div>
+                            <div class="card-body p-2" style="height: 380px; overflow-y: auto;"> <!-- 设置固定高度并添加垂直滚动 -->
+                                <div class="cost-table-wrapper" style="height: 100%; box-shadow: none; border: none;">
+                                    <div class="table-responsive" style="height: 100%;">
+                                        <table class="table table-striped table-sm compact-table">
+                                            <thead>
+                                                <tr>
+                                                    <th width="35">
+                                                        <input type="checkbox" id="selectAllOperatingCost" title="全选" />
+                                                    </th>
+                                                    <th width="150">记录日期</th>
+                                                    <th width="150">成本项目</th>
+                                                    <th width="150">金额</th>
+                                                    <th>备注</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="operatingCostTableBody">
+                                                <!-- 表格内容将由 JavaScript 动态生成 -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 分页控件 -->
+                <div id="operatingCostPagination" class="pagination-container"></div>
+            </div>
+            
+            <!-- 广告成本表格 -->
+            <div id="adCostContent" class="cost-content" style="display: none;">
+                <div class="row">
+                    <div class="col-md-5 mb-3">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-light py-2">
+                                <h6 class="card-title mb-0">广告成本趋势图</h6>
+                            </div>
+                            <div class="card-body p-2" style="height: 380px;"> <!-- 设置固定高度 -->
+                                <canvas id="adCostChart" style="height: 100%;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-7 mb-3">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-light py-2">
+                                <h6 class="card-title mb-0">广告成本数据</h6>
+                            </div>
+                            <div class="card-body p-2" style="height: 380px; overflow-y: auto;"> <!-- 设置固定高度并添加垂直滚动 -->
+                                <div class="cost-table-wrapper" style="height: 100%; box-shadow: none; border: none;">
+                                    <div class="table-responsive" style="height: 100%;">
+                                        <table class="table table-striped table-sm compact-table">
+                                            <thead>
+                                                <tr>
+                                                    <th width="35">
+                                                        <input type="checkbox" id="selectAllAdCost" title="全选" />
+                                                    </th>
+                                                    <th width="150">记录日期</th>
+                                                    <th width="150">成本项目</th>
+                                                    <th width="150">金额</th>
+                                                    <th>备注</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="adCostTableBody">
+                                                <!-- 表格内容将由 JavaScript 动态生成 -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 分页控件 -->
+                <div id="adCostPagination" class="pagination-container"></div>
+            </div>
+        </div>
+        
+        <!-- 成本统计模块 -->
+        <div id="costStatistics" class="module-content" style="display: none;">
+            <!-- 统计模块筛选区域 -->
+            <div class="filter-section mb-3">
+                <div class="filter-group me-3">
+                    <label class="filter-label">时间范围：</label>
+                    <input type="date" id="costStatsStartDate" class="filter-input" />
+                    <span>至</span>
+                    <input type="date" id="costStatsEndDate" class="filter-input" />
+                </div>
+                
+                <div class="filter-group me-3">
+                    <label class="filter-label">成本类型：</label>
+                    <select id="costStatsType" class="filter-input">
+                        <option value="all">全部成本</option>
+                        <option value="production">生产成本</option>
+                        <option value="operating">运营成本</option>
+                        <option value="ad">广告成本</option>
+                    </select>
+                </div>
+                
+                <button id="applyCostStatsFilter" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> 应用筛选
+                </button>
+            </div>
+            
+            <!-- 统计卡片行 -->
+            <div class="stat-cards mb-4">
+                <!-- 总成本卡片 -->
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">总成本</div>
+                        <div class="stat-card-value" id="totalCostAmount">¥0.00</div>
+                    </div>
+                    <div class="stat-card-icon">
+                        <i class="fas fa-coins fa-2x"></i>
+                    </div>
+                </div>
+                
+                <!-- 生产成本比例卡片 -->
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">生产成本比例</div>
+                        <div class="stat-card-value" id="productionCostPercentage">0%</div>
+                    </div>
+                    <div class="stat-card-icon">
+                        <i class="fas fa-industry fa-2x"></i>
+                    </div>
+                </div>
+                
+                <!-- 运营成本比例卡片 -->
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">运营成本比例</div>
+                        <div class="stat-card-value" id="operatingCostPercentage">0%</div>
+                    </div>
+                    <div class="stat-card-icon">
+                        <i class="fas fa-building fa-2x"></i>
+                    </div>
+                </div>
+                
+                <!-- 广告成本比例卡片 -->
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">广告成本比例</div>
+                        <div class="stat-card-value" id="adCostPercentage">0%</div>
+                    </div>
+                    <div class="stat-card-icon">
+                        <i class="fas fa-ad fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 图表区域 -->
+            <div class="row">
+                <!-- 成本趋势图 -->
+                <div class="col-md-6 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light py-2">
+                            <h6 class="card-title mb-0">成本趋势</h6>
+                        </div>
+                        <div class="card-body p-2">
+                            <canvas id="costTrendChart" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 成本类型分布 -->
+                <div class="col-md-6 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light py-2">
+                            <h6 class="card-title mb-0">成本类型分布</h6>
+                        </div>
+                        <div class="card-body p-2">
+                            <canvas id="costTypeChart" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 生产成本明细 -->
+                <div class="col-md-6 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light py-2">
+                            <h6 class="card-title mb-0">生产成本明细</h6>
+                        </div>
+                        <div class="card-body p-2">
+                            <canvas id="productionCostDetailChart" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 运营成本明细 -->
+                <div class="col-md-6 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light py-2">
+                            <h6 class="card-title mb-0">运营成本明细</h6>
+                        </div>
+                        <div class="card-body p-2">
+                            <canvas id="operatingCostDetailChart" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 广告成本明细 -->
+                <div class="col-md-6 mb-3">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light py-2">
+                            <h6 class="card-title mb-0">广告成本明细</h6>
+                        </div>
+                        <div class="card-body p-2">
+                            <canvas id="adCostDetailChart" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 成本表单弹窗 -->
+    <div id="costFormModal" class="modal fade" tabindex="-1" aria-labelledby="costFormTitle" aria-hidden="true">
+        <div class="modal-dialog modal-md">
+            <div class="modal-content">
+                <div class="modal-header bg-primary bg-gradient text-white">
+                    <h5 id="costFormTitle" class="modal-title fw-bold" style="color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3); font-size: 1.25rem;">新增成本记录</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <form id="costForm">
+                        <input type="hidden" id="costId" name="id">
+                        <input type="hidden" id="costSubModule" name="subModule">
+                        
+                        <!-- 运营成本表单字段 -->
+                        <div id="operatingCostFormFields">
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <div class="form-group">
+                                        <label class="form-label" for="costDate">记录日期:</label>
+                                        <input type="date" class="form-control form-control-sm" id="costDate" name="costDate" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <input type="hidden" id="costTypeHidden" name="costType" value="运营成本">
+                                    <div class="form-group">
+                                        <label class="form-label" for="costItem">成本项目:</label>
+                                        <select class="form-select form-select-sm" id="costItem" name="costItem" required>
+                                            <option value="房租">房租</option>
+                                            <option value="物业">物业</option>
+                                            <option value="水费">水费</option>
+                                            <option value="电费">电费</option>
+                                            <option value="工资">工资</option>
+                                            <option value="停车费">停车费</option>
+                                            <option value="杂费">杂费</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <div class="form-group">
+                                        <label class="form-label" for="costAmount">金额(元):</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm" id="costAmount" name="costAmount" step="0.01" required>
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <div class="form-group">
+                                        <label class="form-label" for="costRemark">备注:</label>
+                                        <textarea class="form-control form-control-sm" id="costRemark" name="costRemark" rows="2"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 生产成本表单字段 -->
+                        <div id="productionCostFormFields" style="display: none;">
+                            <!-- 生产成本从订单管理模块同步，不需要手动添加 -->
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                生产成本数据自动从订单管理模块同步，无需手动添加。
+                            </div>
+                        </div>
+                        
+                        <!-- 广告成本表单字段 -->
+                        <div id="adCostFormFields" style="display: none;">
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <div class="form-group">
+                                        <label class="form-label" for="adCostDate">记录日期:</label>
+                                        <input type="date" class="form-control form-control-sm" id="adCostDate" name="adCostDate" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <input type="hidden" id="adCostTypeHidden" name="adCostType" value="广告成本">
+                                    <div class="form-group">
+                                        <label class="form-label" for="adCostItem">广告平台:</label>
+                                        <select class="form-select form-select-sm" id="adCostItem" name="adCostItem" required>
+                                            <option value="小红书">小红书</option>
+                                            <option value="抖音">抖音</option>
+                                            <option value="快手">快手</option>
+                                            <option value="视频号">视频号</option>
+                                            <option value="美团">美团</option>
+                                            <option value="地图">地图</option>
+                                            <option value="老客户推荐">老客户推荐</option>
+                                            <option value="老客户">老客户</option>
+                                            <option value="其他">其他</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <div class="form-group">
+                                        <label class="form-label" for="adCostAmount">金额(元):</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control form-control-sm" id="adCostAmount" name="adCostAmount" step="0.01" required>
+                                            <span class="input-group-text">元</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <div class="form-group">
+                                        <label class="form-label" for="adCostRemark">备注:</label>
+                                        <textarea class="form-control form-control-sm" id="adCostRemark" name="adCostRemark" rows="2"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>取消
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveCostBtn">
+                        <i class="fas fa-save me-1"></i>保存
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页面底部的JavaScript引用 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- 全局错误处理和模块状态跟踪 -->
+    <script>
+        // 全局错误处理
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('全局错误捕获:', message, 'at', source, lineno, colno, error);
+            return true;
+        };
+        
+        // 模块加载状态跟踪
+        window.moduleStatus = {};
+        
+        // 加载脚本的函数
+        function loadScript(url, callback) {
+            var script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = url;
+            script.onload = callback;
+            document.head.appendChild(script);
+        }
+    </script>
+
+    <!-- 权限和通用脚本 (顺序很重要) -->
+    <!-- 1. 管理员权限修复脚本 (必须最先加载) -->
+    <script src="admin-fix.js"></script>
+    <!-- 2. 通用功能 -->
+    <script src="common.js"></script>
+    <!-- 3. 业务逻辑 -->
+    <script src="order.js"></script>
+    <script src="cost.js"></script>
+    <!-- 4. 权限检查 (必须最后加载) -->
+    <script src="user-permissions.js"></script>
+    
+    <!-- 初始化脚本 -->
+    <script>
+        // 页面加载完成后初始化成本管理模块
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置当前模块
+            window.currentModule = 'cost';
+            sessionStorage.setItem('currentModule', 'cost');
+            
+            // 检查Bootstrap是否正确加载
+            if (typeof bootstrap === 'undefined') {
+                console.error('警告: Bootstrap未正确加载，模态框将无法正常工作');
+                alert('页面组件加载不完整，请刷新页面或清除浏览器缓存后重试。');
+            } else {
+                console.log('Bootstrap已正确加载，版本:', bootstrap.Tooltip.VERSION);
+            }
+            
+            // 检查Chart.js是否正确加载
+            if (typeof Chart === 'undefined') {
+                console.error('警告: Chart.js未正确加载，图表将无法显示');
+            } else {
+                console.log('Chart.js已正确加载，版本:', Chart.version);
+            }
+            
+            // 确保模块初始化时正确设置显示状态
+            const costModule = document.getElementById('costModule');
+            const costStatistics = document.getElementById('costStatistics');
+            
+            // 根据会话存储决定显示哪个模块
+            const savedTab = sessionStorage.getItem('currentCostTab');
+            if (savedTab === 'costStatistics') {
+                costModule.style.display = 'none';
+                costStatistics.style.display = 'block';
+            } else {
+                costModule.style.display = 'block';
+                costStatistics.style.display = 'none';
+            }
+            
+            // 初始化成本管理模块
+            if (typeof initCostModule === 'function') {
+                const result = initCostModule();
+                if (result) {
+                    console.log('成本管理模块初始化成功');
+                } else {
+                    console.error('成本管理模块初始化失败');
+                }
+            } else {
+                console.error('initCostModule 函数未定义，无法初始化成本管理模块');
+            }
+        });
+    </script>
+
+    <!-- 页脚内容 -->
+    <footer class="footer">
+        <div class="container-fluid">
+            <div class="text-center py-3">
+                &copy; 2024 服装定制管理系统 | 版本: 1.0.0
+            </div>
+        </div>
+    </footer>
+
+    <!-- 引入JavaScript库 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+</body>
+</html> 

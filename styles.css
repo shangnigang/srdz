@@ -1,0 +1,329 @@
+/* 
+ * 尚荣定制管理系统 - 全局样式
+ * 包含全站通用样式和用户管理页面样式
+ */
+
+/* 全局样式设置 */
+body {
+    font-family: "Microsoft YaHei", "Heiti SC", sans-serif;
+    background-color: #f8f9fa;
+    color: #333;
+}
+
+/* 页面容器 */
+.container-fluid {
+    padding: 0;
+}
+
+/* 顶部导航栏样式 */
+.navbar {
+    background-color: #2c3e50;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.4rem;
+    color: #ecf0f1 !important;
+}
+
+.navbar-text {
+    color: #bdc3c7 !important;
+}
+
+/* 侧边栏样式 */
+.sidebar {
+    background-color: #34495e;
+    height: calc(100vh - 56px);
+    position: sticky;
+    top: 56px;
+    padding-top: 20px;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.list-group-item {
+    background-color: transparent;
+    border: none;
+    color: #ecf0f1;
+    padding: 12px 20px;
+    border-radius: 0;
+    transition: all 0.3s;
+}
+
+.list-group-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.list-group-item.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-left: 3px solid #3498db;
+    color: #fff;
+}
+
+.list-group-item i {
+    margin-right: 10px;
+    width: 20px;
+    text-align: center;
+}
+
+/* 主内容区域样式 */
+.main-content {
+    padding: 20px;
+    min-height: calc(100vh - 56px);
+}
+
+/* 卡片样式 */
+.card {
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid #eee;
+    padding: 15px 20px;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* 用户管理页面特定样式 */
+.user-filters {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.user-filters .search-box {
+    display: flex;
+    width: 300px;
+}
+
+/* 用户卡片样式 */
+.user-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.user-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.user-card .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.user-avatar {
+    width: 60px;
+    height: 60px;
+    background-color: #3498db;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    font-weight: bold;
+    margin-right: 15px;
+}
+
+.user-info h5 {
+    margin-bottom: 4px;
+    font-weight: bold;
+}
+
+.user-level {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 12px;
+    border-radius: 12px;
+    font-weight: normal;
+}
+
+.user-level.admin {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.user-level.manager {
+    background-color: #f39c12;
+    color: white;
+}
+
+.user-level.sales {
+    background-color: #3498db;
+    color: white;
+}
+
+.user-level.guest {
+    background-color: #7f8c8d;
+    color: white;
+}
+
+.user-meta {
+    margin-top: 10px;
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+.user-meta i {
+    width: 18px;
+    margin-right: 5px;
+}
+
+.user-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* 权限表格样式 */
+.permissions-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.permissions-table th, 
+.permissions-table td {
+    border: 1px solid #dee2e6;
+    padding: 12px;
+    text-align: center;
+}
+
+.permissions-table th {
+    background-color: #f8f9fa;
+}
+
+.permissions-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.permissions-table tr:hover {
+    background-color: #f2f2f2;
+}
+
+/* 权限开关样式 */
+.permission-toggle {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.permission-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: #2196F3;
+}
+
+input:focus + .toggle-slider {
+    box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(26px);
+}
+
+/* 模态框样式 */
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #eee;
+}
+
+.modal-footer {
+    border-top: 1px solid #eee;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .sidebar {
+        height: auto;
+        position: relative;
+        top: 0;
+    }
+    
+    .main-content {
+        padding: 15px;
+    }
+    
+    .user-filters {
+        flex-direction: column;
+    }
+    
+    .user-filters .search-box {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .user-card .card-header {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .user-avatar {
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+}
+
+/* 页脚样式 */
+.footer {
+    background-color: #2c3e50;
+    color: #ecf0f1;
+    padding: 15px 0;
+    text-align: center;
+    margin-top: 20px;
+}
+
+/* 动画效果 */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+} 

@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- 身份验证检查脚本 - 必须放在最前面 -->
+    <script src="auth-check.js"></script>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>尚荣定制管理系统 - 经营分析</title>
+    
+    <!-- 紧急权限覆盖 - 确保最早执行 -->
+    <script>
+        // 更严格地检查当前用户是否为管理员
+        function isAdmin() {
+            try {
+                const userInfoStr = localStorage.getItem('user_info');
+                if (!userInfoStr) return false;
+                
+                const userInfo = JSON.parse(userInfoStr);
+                // 严格检查用户角色
+                if (!userInfo || !userInfo.role) {
+                    return false;
+                }
+                
+                // 确保角色是字符串类型且严格匹配admin
+                return typeof userInfo.role === 'string' && userInfo.role.toLowerCase() === 'admin';
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        // 只有管理员才能获得权限覆盖
+        if (isAdmin()) {
+            // 紧急权限覆盖
+            window._adminEmergencyOverride = true;
+            window.adminPermissionsEnabled = true;
+            window.isAdmin = true;
+            
+            // 添加早期钩子
+            window.hasPermission = function() { return true; };
+            window.checkPermission = function() { return true; };
+            
+            console.log('页面内联管理员权限覆盖已应用');
+        } else {
+            console.log('当前用户非管理员，不应用权限覆盖');
+            // 为非管理员用户设置权限检查函数
+            window.hasPermission = function(permission) { 
+                // 非管理员用户需要按照系统设置的权限进行检查
+                console.log('非管理员权限检查:', permission);
+                return false; // 默认不授予权限，等待后续权限系统加载后覆盖
+            };
+        }
+    </script>
+    
+    <!-- 预加载资源 -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js" as="script" crossorigin="anonymous">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js" as="script" crossorigin="anonymous">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <!-- Font Awesome 图标 -->
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.2/css/all.min.css" rel="stylesheet" crossorigin="anonymous">
+    
+    <style>
+        /* 基础样式 */
+        body {
+            font-family: "Microsoft YaHei", "Segoe UI", "Helvetica Neue", sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #333;
+            min-height: 100vh;
+        }
+        
+        /* 页眉样式 */
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 15px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo i {
+            margin-right: 10px;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-info img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        
+        /* 导航栏样式 */
+        .nav-container {
+            background-color: #fff;
+            border-bottom: 1px solid #e9ecef;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .nav-tabs {
+            border-bottom: none;
+            padding: 0 20px;
+        }
+        
+        .nav-tabs .nav-link {
+            border: none;
+            color: #495057;
+            font-weight: 500;
+            padding: 12px 16px;
+            margin-right: 5px;
+            transition: all 0.3s;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            color: #3498db;
+            background-color: rgba(52, 152, 219, 0.05);
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: #3498db;
+            border-bottom: 3px solid #3498db;
+            background-color: transparent;
+        }
+        
+        /* 子模块切换按钮 */
+        .submodule-nav {
+            margin: 20px 0;
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 10px;
+        }
+        
+        .submodule-btn {
+            margin-right: 10px;
+            border: none;
+            background-color: transparent;
+            padding: 8px 16px;
+            font-weight: 500;
+            color: #6c757d;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .submodule-btn:hover {
+            color: #3498db;
+            background-color: rgba(52, 152, 219, 0.05);
+        }
+        
+        .submodule-btn.active {
+            color: white;
+            background-color: #3498db;
+        }
+        
+        /* 卡片样式 */
+        .card {
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid rgba(0,0,0,.125);
+            padding: 10px 15px;
+            font-weight: 600;
+        }
+        
+        .card-body {
+            padding: 12px;
+        }
+        
+        /* 工具栏 */
+        .toolbar {
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        /* 按钮样式 */
+        .btn {
+            border-radius: 4px;
+            font-weight: 500;
+            padding: 6px 12px;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            border-color: #2980b9;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+            border-color: #2573a7;
+        }
+        
+        .btn-success {
+            background-color: #2ecc71;
+            border-color: #27ae60;
+        }
+        
+        .btn-success:hover {
+            background-color: #27ae60;
+            border-color: #219d54;
+        }
+        
+        .btn-danger {
+            background-color: #e74c3c;
+            border-color: #c0392b;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c0392b;
+            border-color: #a93226;
+        }
+        
+        .btn-warning {
+            background-color: #f39c12;
+            border-color: #d35400;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background-color: #d35400;
+            border-color: #ba4a00;
+            color: white;
+        }
+        
+        /* 筛选器样式 */
+        .filter-section {
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .filter-label {
+            font-weight: 500;
+            margin-bottom: 0;
+        }
+        
+        .filter-input {
+            padding: 6px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            transition: border-color 0.15s ease-in-out;
+        }
+        
+        /* 分析子模块导航 */
+        .sub-module-nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .sub-module-btn {
+            padding: 8px 15px;
+            background-color: #e9ecef;
+            border: none;
+            border-radius: 4px;
+            color: #495057;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .sub-module-btn:hover {
+            background-color: #dee2e6;
+        }
+        
+        .sub-module-btn.active {
+            background-color: #3c8dbc;
+            color: white;
+        }
+        
+        /* 图表容器 */
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            margin-bottom: 15px;
+        }
+        
+        /* 数据统计卡片 */
+        .stat-cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 8px; /* 5px减小5px，缩小与时间筛选组件的间距 */
+        }
+        
+        .stat-card {
+            flex: 1;
+            min-width: 200px;
+            padding: 7px; /* 减小内边距 */
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            background-color: #f1f8ff; /* 添加浅蓝色底色 */
+            display: flex; /* 使用flex布局实现横向排列 */
+            align-items: center;
+            justify-content: space-between;
+            text-align: left; /* 左对齐文本 */
+        }
+        
+        .stat-card-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .stat-card-title {
+            color: #6c757d;
+            font-size: 0.85rem; /* 稍微减小字体 */
+            margin-bottom: 2px; /* 减小间距 */
+        }
+        
+        .stat-card-value {
+            font-size: 1.3rem; /* 减小字体 */
+            font-weight: 600;
+            color: #333;
+            line-height: 1.2; /* 减小行高 */
+        }
+        
+        .stat-card-trend {
+            font-size: 0.75rem; /* 减小字体 */
+            white-space: nowrap; /* 防止换行 */
+        }
+        
+        .trend-up {
+            color: #28a745;
+        }
+        
+        .trend-down {
+            color: #dc3545;
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .filter-section {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .filter-group {
+                width: 100%;
+            }
+            
+            .stat-card {
+                min-width: 100%;
+            }
+
+        }
+        
+        /* 调整行间距 */
+        .row {
+            margin-bottom: 15px;
+        }
+
+        /* 数据统计卡片 - 订单统计风格 */
+        .stat-cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px; /* 增加内边距 */
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: relative; /* 为渐变背景定位置 */
+            overflow: hidden; /* 确保渐变不溢出边框 */
+            transition: all 0.3s ease; /* 添加过渡效果 */
+        }
+        
+        .stat-card:nth-child(1) {
+            background: linear-gradient(135deg, #2193b0, #6dd5ed);
+        }
+        
+        .stat-card:nth-child(2) {
+            background: linear-gradient(135deg, #834d9b, #d04ed6);
+        }
+        
+        .stat-card:nth-child(3) {
+            background: linear-gradient(135deg, #1d976c, #93f9b9);
+        }
+        
+        .stat-card:nth-child(4) {
+            background: linear-gradient(135deg, #eb3349, #f45c43);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(-100%);
+            transition: transform 0.5s ease;
+        }
+        
+        .stat-card:hover::before {
+            transform: translateX(100%);
+        }
+        
+        .stat-card-info {
+            display: flex;
+            flex-direction: column;
+            position: relative; /* 确保内容在渐变层之上 */
+            z-index: 2;
+        }
+        
+        .stat-card-title {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 5px;
+            text-transform: uppercase; /* 大写标题 */
+        }
+        
+        .stat-card-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            line-height: 1.2;
+            margin-bottom: 3px;
+        }
+        
+        .stat-card-trend {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .trend-up {
+            color: #a5f3c4;
+        }
+        
+        .trend-down {
+            color: #ffb1b1;
+        }
+    </style>
+</head>
+<body>
+    <!-- 页面头部 -->
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <i class="fas fa-tshirt"></i> 尚荣定制管理系统 <span style="margin-left: 15px; font-size: 20px;"><i class="fas fa-chart-line"></i> 经营分析</span>
+            </div>
+            <div class="user-info">
+                <a href="index.html" class="btn btn-sm btn-outline-light me-3">
+                    <i class="fas fa-home"></i> 返回首页
+                </a>
+                <img src="user-avatar.svg" alt="用户头像">
+                <span id="userDisplayName">加载中...</span>
+                <script>
+                    // 在DOM加载完成后更新用户信息显示
+                    document.addEventListener('DOMContentLoaded', function() {
+                        try {
+                            const userInfoStr = localStorage.getItem('user_info');
+                            if (userInfoStr) {
+                                const userInfo = JSON.parse(userInfoStr);
+                                const userName = userInfo.name || userInfo.username || '用户';
+                                const userRole = userInfo.role === 'admin' ? '管理员' : '普通用户';
+                                document.getElementById('userDisplayName').textContent = `${userName}(${userRole})，欢迎您！`;
+                            } else {
+                                document.getElementById('userDisplayName').textContent = '用户，欢迎您！';
+                            }
+                        } catch(e) {
+                            console.error('更新用户显示名称失败:', e);
+                            document.getElementById('userDisplayName').textContent = '用户，欢迎您！';
+                        }
+                    });
+                </script>
+            </div>
+        </div>
+    </header>
+
+    <!-- 导航标签 - 保留一个空白导航区域 -->
+    <div class="nav-container">
+        <ul class="nav nav-tabs">
+            <!-- 经营数据标签已移除 -->
+        </ul>
+    </div>
+
+    <!-- 内容容器 -->
+    <div class="content-container">
+        <!-- 经营分析子模块导航和筛选区域 - 放在同一行 -->
+        <div class="d-flex justify-content-between align-items-center submodule-nav flex-wrap">
+            <div>
+                <button class="submodule-btn active" data-sub-module="overviewAnalysis">整体概览</button>
+                <button class="submodule-btn" data-sub-module="salesAnalysis">销售分析</button>
+                <button class="submodule-btn" data-sub-module="customerAnalysis">客户分析</button>
+                <button class="submodule-btn" data-sub-module="productAnalysis">产品分析</button>
+                <button class="submodule-btn" data-sub-module="profitAnalysis">利润分析</button>
+            </div>
+            
+            <div class="filter-group d-flex align-items-center">
+                <label class="filter-label me-2">时间范围：</label>
+                <input type="date" id="analysisStartDate" class="filter-input me-1" />
+                <span class="mx-1">至</span>
+                <input type="date" id="analysisEndDate" class="filter-input me-3" />
+                <button id="applyAnalysisFilter" class="btn btn-primary btn-sm me-2">
+                    <i class="fas fa-filter"></i> 筛选
+                </button>
+                <button id="resetAnalysisFilter" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-undo"></i> 重置
+                </button>
+            </div>
+        </div>
+
+        <!-- 整体概览子模块 -->
+        <div id="overviewAnalysisContent" class="analysis-content">
+            <!-- 数据统计卡片 -->
+            <div class="stat-cards">
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">总订单数</div>
+                        <div class="stat-card-value" id="totalOrdersValue">1,254</div>
+                    </div>
+                    <div class="stat-card-trend" id="totalOrdersTrend">
+                        <i class="fas fa-arrow-up"></i> <span>8.3%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">总销售额</div>
+                        <div class="stat-card-value" id="totalSalesValue">¥598,320</div>
+                    </div>
+                    <div class="stat-card-trend" id="totalSalesTrend">
+                        <i class="fas fa-arrow-up"></i> <span>12.7%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">总成本</div>
+                        <div class="stat-card-value" id="totalCostsValue">¥324,580</div>
+                    </div>
+                    <div class="stat-card-trend" id="totalCostsTrend">
+                        <i class="fas fa-arrow-up"></i> <span>9.5%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">总利润</div>
+                        <div class="stat-card-value" id="totalProfitValue">¥273,740</div>
+                    </div>
+                    <div class="stat-card-trend" id="totalProfitTrend">
+                        <i class="fas fa-arrow-up"></i> <span>16.2%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主要图表 -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">销售与利润趋势</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="salesProfitTrendChart"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">订单来源分布</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="orderSourcePieChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">面料品牌偏好</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="fabricBrandChart"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">季节订单分布</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="seasonalOrderChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 销售分析子模块 -->
+        <div id="salesAnalysisContent" class="analysis-content" style="display: none;">
+            <!-- 数据统计卡片 -->
+            <div class="stat-cards">
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">月均销售额</div>
+                        <div class="stat-card-value" id="monthlySalesAvgValue">¥49,860</div>
+                    </div>
+                    <div class="stat-card-trend" id="monthlySalesAvgTrend">
+                        <i class="fas fa-arrow-up"></i> <span>5.8%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">客单价</div>
+                        <div class="stat-card-value" id="perCustomerSalesValue">¥477</div>
+                    </div>
+                    <div class="stat-card-trend" id="perCustomerSalesTrend">
+                        <i class="fas fa-arrow-up"></i> <span>3.2%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">销售转化率</div>
+                        <div class="stat-card-value" id="salesConversionRateValue">32.5%</div>
+                    </div>
+                    <div class="stat-card-trend" id="salesConversionRateTrend">
+                        <i class="fas fa-arrow-up"></i> <span>1.7%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">退单率</div>
+                        <div class="stat-card-value" id="refundRateValue">2.3%</div>
+                    </div>
+                    <div class="stat-card-trend" id="refundRateTrend">
+                        <i class="fas fa-arrow-down"></i> <span>0.5%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">月度销售趋势</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="monthlySalesChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">销售渠道分布</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="salesChannelChart"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">价格区间分布</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="priceRangeChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 客户分析子模块 -->
+        <div id="customerAnalysisContent" class="analysis-content" style="display: none;">
+            <!-- 数据统计卡片 -->
+            <div class="stat-cards">
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">活跃客户数</div>
+                        <div class="stat-card-value" id="activeCustomersValue">876</div>
+                    </div>
+                    <div class="stat-card-trend" id="activeCustomersTrend">
+                        <i class="fas fa-arrow-up"></i> <span>7.2%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">新客户获取</div>
+                        <div class="stat-card-value" id="newCustomersValue">152</div>
+                    </div>
+                    <div class="stat-card-trend" id="newCustomersTrend">
+                        <i class="fas fa-arrow-up"></i> <span>9.4%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">复购率</div>
+                        <div class="stat-card-value" id="repeatPurchaseRateValue">43.8%</div>
+                    </div>
+                    <div class="stat-card-trend" id="repeatPurchaseRateTrend">
+                        <i class="fas fa-arrow-up"></i> <span>2.1%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">客户流失率</div>
+                        <div class="stat-card-value" id="customerChurnRateValue">5.7%</div>
+                    </div>
+                    <div class="stat-card-trend" id="customerChurnRateTrend">
+                        <i class="fas fa-arrow-down"></i> <span>1.2%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">客户来源分析</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="customerSourceChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">客户性别分布</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="customerGenderChart"></div>
+                        </div>
+
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">新老客户比例</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="newReturningCustomerChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 产品分析子模块 -->
+        <div id="productAnalysisContent" class="analysis-content" style="display: none;">
+            <!-- 数据统计卡片 -->
+            <div class="stat-cards">
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">热销产品数</div>
+                        <div class="stat-card-value" id="hotProductsValue">28</div>
+                    </div>
+                    <div class="stat-card-trend" id="hotProductsTrend">
+                        <i class="fas fa-arrow-up"></i> <span>4.5%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">面料使用量</div>
+                        <div class="stat-card-value" id="fabricUsageValue">12,450平米</div>
+                    </div>
+                    <div class="stat-card-trend" id="fabricUsageTrend">
+                        <i class="fas fa-arrow-up"></i> <span>6.8%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">产品毛利率</div>
+                        <div class="stat-card-value" id="productMarginValue">52.4%</div>
+                    </div>
+                    <div class="stat-card-trend" id="productMarginTrend">
+                        <i class="fas fa-arrow-up"></i> <span>1.9%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">定制款占比</div>
+                        <div class="stat-card-value" id="customProductRatioValue">78.3%</div>
+                    </div>
+                    <div class="stat-card-trend" id="customProductRatioTrend">
+                        <i class="fas fa-arrow-up"></i> <span>3.5%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">热门面料品牌分析</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="popularFabricBrandChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">颜色偏好分析</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="colorPreferenceChart"></div>
+                        </div>
+
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">面料用量分布</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="fabricUsageChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 利润分析子模块 -->
+        <div id="profitAnalysisContent" class="analysis-content" style="display: none;">
+            <!-- 成本统计卡片 -->
+            <div class="stat-cards">
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">总成本支出</div>
+                        <div class="stat-card-value" id="totalCostValue">¥324,580</div>
+                    </div>
+                    <div class="stat-card-trend" id="totalCostTrend">
+                        <i class="fas fa-arrow-up"></i> <span>12.5%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">生产成本占比</div>
+                        <div class="stat-card-value" id="productionCostRatio">68.3%</div>
+                    </div>
+                    <div class="stat-card-trend" id="productionCostTrend">
+                        <i class="fas fa-arrow-down"></i> <span>2.1%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">运营成本占比</div>
+                        <div class="stat-card-value" id="operationCostRatio">21.5%</div>
+                    </div>
+                    <div class="stat-card-trend" id="operationCostTrend">
+                        <i class="fas fa-arrow-up"></i> <span>1.3%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <div class="stat-card-title">广告成本占比</div>
+                        <div class="stat-card-value" id="adCostRatio">10.2%</div>
+                    </div>
+                    <div class="stat-card-trend" id="adCostTrend">
+                        <i class="fas fa-arrow-up"></i> <span>3.7%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">月度利润趋势</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="monthlyProfitChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">各面料品牌利润对比</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="fabricBrandProfitChart"></div>
+                        </div>
+
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">成本与利润比例</div>
+                        <div class="card-body">
+                            <div class="chart-container" id="costProfitRatioChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    
+    <!-- 权限和通用脚本 (顺序很重要) -->
+    <!-- 1. 管理员权限修复脚本 (必须最先加载) -->
+    <script src="admin-fix.js"></script>
+    <!-- 2. 通用功能 -->
+    <script src="common.js"></script>
+    <!-- 3. 业务逻辑 -->
+    <script src="order.js"></script>
+    <script src="cost.js"></script>
+    <script src="analysis.js"></script>
+    <!-- 4. 权限检查 (必须最后加载) -->
+    <script src="user-permissions.js"></script>
+    
+    <!-- 初始化脚本 -->
+    <script>
+        // 全局变量
+        let currentModule = 'analysisModule';
+        let currentAnalysisSubModule = 'overviewAnalysis';
+        
+        // 确保DOM加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                console.log('初始化经营分析系统..');
+                
+                // 加载数据
+                if (typeof loadData === 'function') {
+                    loadData();
+                    console.log('数据加载完成');
+                } else {
+                    console.warn('未找到loadData函数，可能影响数据分析');
+                }
+                
+                // 初始化分析模块
+                if (typeof initAnalysisModule === 'function') {
+                    initAnalysisModule();
+                } else {
+                    console.warn('未找到initAnalysisModule函数');
+                }
+                
+                // 子模块切换
+                document.querySelectorAll('.submodule-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const subModule = this.getAttribute('data-sub-module');
+                        switchAnalysisSubModule(subModule);
+                    });
+                });
+                
+                // 筛选按钮
+                document.getElementById('applyAnalysisFilter').addEventListener('click', function() {
+                    const startDate = document.getElementById('analysisStartDate').value;
+                    const endDate = document.getElementById('analysisEndDate').value;
+                    
+                    if (typeof refreshAnalysisData === 'function') {
+                        refreshAnalysisData(currentAnalysisSubModule, startDate, endDate);
+                    }
+                });
+                
+                // 重置按钮
+                document.getElementById('resetAnalysisFilter').addEventListener('click', function() {
+                    // 设置默认日期范围（最近半年）
+                    const today = new Date();
+                    const halfYearAgo = new Date();
+                    halfYearAgo.setMonth(halfYearAgo.getMonth() - 6);
+                    
+                    document.getElementById('analysisStartDate').value = formatDate(halfYearAgo);
+                    document.getElementById('analysisEndDate').value = formatDate(today);
+                    
+                    if (typeof refreshAnalysisData === 'function') {
+                        refreshAnalysisData(currentAnalysisSubModule, formatDate(halfYearAgo), formatDate(today));
+                    }
+                });
+                
+                // 添加返回首页链接事件监听
+                const homeLink = document.querySelector('.nav-link[href="index.html"]');
+                if (homeLink) {
+                    homeLink.addEventListener('click', function() {
+                        console.log('返回首页');
+                    });
+                }
+                
+                console.log('经营分析系统初始化完成');
+                
+            } catch (error) {
+                console.error('初始化失败', error);
+                alert('系统初始化失败 ' + error.message);
+            }
+        });
+        
+        // 切换分析子模块
+        function switchAnalysisSubModule(subModule) {
+            // 更新当前子模块
+            currentAnalysisSubModule = subModule;
+            
+            // 更新按钮状态
+            document.querySelectorAll('.submodule-btn').forEach(btn => {
+                if (btn.getAttribute('data-sub-module') === subModule) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // 隐藏所有内容
+            document.querySelectorAll('.analysis-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            
+            // 显示选中的内容
+            document.getElementById(subModule + 'Content').style.display = 'block';
+            
+            // 根据选中的子模块重新加载数据
+            if (typeof refreshAnalysisData === 'function') {
+                refreshAnalysisData(subModule);
+            }
+        }
+    </script>
+</body>
+</html> 
+
+
+
+

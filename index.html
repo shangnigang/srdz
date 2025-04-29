@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- 身份验证检查脚本 - 必须放在最前面 -->
+    <script src="auth-check.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>尚荣定制管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.2/css/all.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link href="styles.css" rel="stylesheet">
+    <link href="dashboard.css" rel="stylesheet">
+    <style>
+        /* 首页特定样式 */
+        .welcome-banner {
+            background: linear-gradient(135deg, #3498db, #2c3e50);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        
+        .welcome-banner h2 {
+            font-size: 1.6rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .welcome-banner p {
+            font-size: 0.9rem;
+        }
+        
+        .feature-card {
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+            transition: transform 0.3s, box-shadow 0.3s;
+            height: 100%;
+            margin-bottom: 15px;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        }
+        
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #3498db;
+        }
+        
+        .feature-card .card-title {
+            font-size: 1.1rem;
+        }
+        
+        .feature-card .card-text {
+            font-size: 0.85rem;
+        }
+        
+        .feature-card .card-body {
+            padding: 1rem;
+        }
+        
+        .stats-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+            padding: 15px;
+            text-align: center;
+            height: 100%;
+            margin-bottom: 15px;
+        }
+        
+        .stats-card .number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #3498db;
+        }
+        
+        .stats-card .label {
+            color: #7f8c8d;
+            font-size: 0.8rem;
+        }
+        
+        /* 表格样式调整 */
+        .table {
+            font-size: 0.85rem;
+        }
+        
+        .table th, .table td {
+            padding: 0.5rem;
+        }
+        
+        .card-header {
+            padding: 0.75rem 1rem;
+        }
+        
+        .card-header h5 {
+            font-size: 1.1rem;
+            margin-bottom: 0;
+        }
+        
+        .card-body {
+            padding: 1rem;
+        }
+        
+        /* 标题和间距调整 */
+        h3 {
+            font-size: 1.3rem;
+            margin-bottom: 0.8rem;
+        }
+        
+        .mb-4 {
+            margin-bottom: 1rem !important;
+        }
+        
+        .mb-5 {
+            margin-bottom: 1.5rem !important;
+        }
+        
+        /* 新的侧边栏样式，基于用户管理页面 */
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --info-color: #1abc9c;
+            --dark-color: #34495e;
+            --light-color: #ecf0f1;
+            --gray-color: #95a5a6;
+            --white-color: #ffffff;
+            --sidebar-width: 250px;
+            --sidebar-collapsed-width: 70px;
+            --header-height: 60px;
+            --card-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            --transition-speed: 0.3s;
+        }
+        
+        /* 侧边栏样式 */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background-color: var(--dark-color);
+            color: var(--light-color);
+            transition: all var(--transition-speed) ease;
+            overflow-y: auto;
+            z-index: 900;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 15px;
+        }
+        
+        .sidebar-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            padding: 15px 15px 5px;
+            color: var(--gray-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+        }
+        
+        .sidebar-item {
+            position: relative;
+            margin-bottom: 2px;
+        }
+        
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: var(--light-color);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        
+        .sidebar-link:hover, 
+        .sidebar-link.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--white-color);
+            border-left: 3px solid var(--primary-color);
+        }
+        
+        .sidebar-link i {
+            margin-right: 15px;
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+        
+        .sidebar-user {
+            padding: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: auto;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #fff;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .user-details {
+            flex: 1;
+        }
+        
+        .user-name {
+            font-weight: 600;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        
+        .user-role {
+            color: var(--gray-color);
+            font-size: 0.8rem;
+            margin: 0;
+        }
+        
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 20px;
+            transition: all var(--transition-speed) ease;
+            max-width: calc(100vw - var(--sidebar-width));
+            overflow-x: hidden;
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                width: var(--sidebar-collapsed-width);
+                z-index: 1030;
+            }
+            
+            .sidebar-title,
+            .sidebar-link span,
+            .user-details {
+                display: none;
+            }
+            
+            .sidebar-link {
+                justify-content: center;
+                padding: 12px;
+            }
+            
+            .sidebar-link i {
+                margin-right: 0;
+            }
+            
+            .main-content {
+                margin-left: var(--sidebar-collapsed-width);
+                max-width: calc(100vw - var(--sidebar-collapsed-width));
+            }
+            
+            .sidebar-user {
+                display: flex;
+                justify-content: center;
+            }
+            
+            .user-avatar {
+                margin-right: 0;
+            }
+            
+            #sidebarLogoutBtn span {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 767.98px) {
+            .row > [class*='col-'] {
+                padding-right: 8px;
+                padding-left: 8px;
+            }
+            
+            .card, .stats-card, .feature-card {
+                margin-bottom: 15px;
+            }
+            
+            .welcome-banner {
+                padding: 20px;
+            }
+            
+            /* 表格响应式调整 */
+            .table-responsive {
+                width: 100%;
+                margin-bottom: 15px;
+                overflow-y: hidden;
+                border: 1px solid #dee2e6;
+            }
+            
+            .table {
+                margin-bottom: 0;
+            }
+            
+            .table th:not(:first-child),
+            .table td:not(:first-child) {
+                min-width: 100px;
+            }
+        }
+        
+        @media (max-width: 575.98px) {
+            .main-content {
+                padding: 15px 10px;
+            }
+            
+            .sidebar {
+                width: 0;
+            }
+            
+            .sidebar.show {
+                width: var(--sidebar-width);
+            }
+            
+            .main-content {
+                margin-left: 0;
+                max-width: 100vw;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边栏导航 -->
+    <div class="container-fluid p-0">
+        <div class="row g-0">
+            <!-- 侧边导航栏 -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-tshirt fa-2x me-2"></i>
+                        <h5 class="mb-0">尚荣定制管理系统</h5>
+                    </div>
+                </div>
+                
+                <div class="sidebar-title">主菜单</div>
+                <ul class="sidebar-menu">
+                    <li class="sidebar-item">
+                        <a href="index.html" class="sidebar-link active">
+                            <i class="fas fa-home"></i>
+                            <span>首页</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="order.html" class="sidebar-link">
+                            <i class="fas fa-clipboard-list"></i>
+                            <span>订单管理</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item" data-permission="manage_costs">
+                        <a href="cost.html" class="sidebar-link">
+                            <i class="fas fa-money-bill"></i>
+                            <span>成本管理</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item" data-permission="manage_salaries">
+                        <a href="salary.html" class="sidebar-link">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <span>工资录入</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item" data-permission="view_analysis">
+                        <a href="analysis.html" class="sidebar-link">
+                            <i class="fas fa-chart-line"></i>
+                            <span>经营分析</span>
+                        </a>
+                    </li>
+                </ul>
+                
+                <div class="sidebar-title">系统管理</div>
+                <ul class="sidebar-menu">
+                    <li class="sidebar-item" data-permission="manage_data">
+                        <a href="data-management.html" class="sidebar-link">
+                            <i class="fas fa-database"></i>
+                            <span>数据管理</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="guide.html" class="sidebar-link">
+                            <i class="fas fa-question-circle"></i>
+                            <span>使用指南</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a href="profile.html" class="sidebar-link">
+                            <i class="fas fa-user-cog"></i>
+                            <span>个人设置</span>
+                        </a>
+                    </li>
+                </ul>
+                
+                <div class="sidebar-user mt-auto">
+                    <div class="user-info">
+                        <div class="user-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="user-details">
+                            <div class="user-name" id="sidebarUserName">加载中...</div>
+                            <div class="user-role" id="sidebarUserRole">请稍候</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-outline-light btn-sm w-100" id="sidebarLogoutBtn">
+                        <i class="fas fa-sign-out-alt me-2"></i>退出登录
+                    </button>
+                </div>
+            </aside>
+            
+            <!-- 主内容区域 -->
+            <main class="main-content">
+                <!-- 顶部标题栏 -->
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <div class="d-flex align-items-center">
+                        <button id="sidebarToggleBtn" class="btn btn-link d-md-none me-2">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <h1 class="h2">系统仪表盘</h1>
+                    </div>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshDashboard">
+                                <i class="fas fa-sync-alt"></i> 刷新数据
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-calendar-alt"></i> 今日
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 欢迎横幅 -->
+                <div class="welcome-banner mb-4">
+                    <h2>欢迎使用尚荣定制管理系统</h2>
+                    <p class="mb-0">这是一款专为服装定制店铺打造的综合管理解决方案，提供订单管理、成本控制、数据分析等全方位功能。</p>
+                </div>
+                
+                <!-- 数据统计卡片 -->
+                <div class="row mb-4">
+                    <div class="col-md-3 mb-4 mb-md-0">
+                        <div class="stats-card">
+                            <i class="fas fa-clipboard-list mb-2 text-primary" style="font-size: 1.5rem;"></i>
+                            <div class="number" id="totalOrders">--</div>
+                            <div class="label">订单总数</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-4 mb-md-0">
+                        <div class="stats-card">
+                            <i class="fas fa-spinner mb-2 text-warning" style="font-size: 1.5rem;"></i>
+                            <div class="number" id="pendingOrders">--</div>
+                            <div class="label">待处理订单</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-4 mb-md-0">
+                        <div class="stats-card">
+                            <i class="fas fa-coins mb-2 text-success" style="font-size: 1.5rem;"></i>
+                            <div class="number" id="monthlyRevenue">--</div>
+                            <div class="label">本月收入 (元)</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <i class="fas fa-users mb-2 text-info" style="font-size: 1.5rem;"></i>
+                            <div class="number" id="totalCustomers">--</div>
+                            <div class="label">客户总数</div>
+                        </div>
+                    </div>
+                </div>
+                
+
+            </main>
+        </div>
+    </div>
+    
+    <!-- 自动初始化脚本 -->
+    <script src="auto-init.js"></script>
+    
+    <!-- 引入权限系统 -->
+    <script src="permissions.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    
+    <!-- 业务逻辑脚本 -->
+    <script src="common.js"></script>
+    <script src="dashboard.js"></script>
+    
+    <!-- 权限修复脚本 -->
+    <script src="fix-sales1-permissions.js"></script>
+    
+    <script>
+        // 初始化仪表盘数据
+        function initDashboard() {
+            // 模拟数据 - 实际应用中应该从API获取
+            setTimeout(() => {
+                document.getElementById('totalOrders').textContent = '157';
+                document.getElementById('pendingOrders').textContent = '23';
+                document.getElementById('monthlyRevenue').textContent = '45,823';
+                document.getElementById('totalCustomers').textContent = '89';
+                
+                // 最近订单数据
+                const recentOrders = [
+                    { id: 'SR2023112001', customer: '张先生', date: '2023-11-20', amount: '¥1,200', status: '待处理' },
+                    { id: 'SR2023111905', customer: '李女士', date: '2023-11-19', amount: '¥2,450', status: '生产中' },
+                    { id: 'SR2023111802', customer: '王先生', date: '2023-11-18', amount: '¥3,680', status: '已完成' },
+                    { id: 'SR2023111706', customer: '赵女士', date: '2023-11-17', amount: '¥1,850', status: '已交付' },
+                    { id: 'SR2023111605', customer: '刘先生', date: '2023-11-16', amount: '¥2,100', status: '已完成' },
+                ];
+                
+                const tableBody = document.querySelector('#recentOrdersTable tbody');
+                tableBody.innerHTML = '';
+                
+                recentOrders.forEach(order => {
+                    let statusClass = '';
+                    switch(order.status) {
+                        case '待处理': statusClass = 'warning'; break;
+                        case '生产中': statusClass = 'info'; break;
+                        case '已完成': statusClass = 'success'; break;
+                        case '已交付': statusClass = 'primary'; break;
+                        default: statusClass = 'secondary';
+                    }
+                    
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td>${order.id}</td>
+                            <td>${order.customer}</td>
+                            <td>${order.date}</td>
+                            <td>${order.amount}</td>
+                            <td><span class="badge bg-${statusClass}">${order.status}</span></td>
+                            <td>
+                                <a href="order-detail.html?id=${order.id}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+            }, 800); // 模拟加载延迟
+        }
+
+        // 添加侧边栏切换功能
+        function initSidebarToggle() {
+            const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+            const sidebar = document.querySelector('.sidebar');
+            const mainContent = document.querySelector('.main-content');
+            
+            if (sidebarToggleBtn) {
+                sidebarToggleBtn.addEventListener('click', function() {
+                    if (sidebar) {
+                        sidebar.classList.toggle('show');
+                    }
+                });
+            }
+            
+            // 监听窗口大小变化
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 576) {
+                    if (sidebar && sidebar.classList.contains('show')) {
+                        sidebar.classList.remove('show');
+                    }
+                }
+            });
+            
+            // 点击主内容区域时，在小屏幕上关闭侧边栏
+            if (mainContent) {
+                mainContent.addEventListener('click', function() {
+                    if (window.innerWidth < 576 && sidebar && sidebar.classList.contains('show')) {
+                        sidebar.classList.remove('show');
+                    }
+                });
+            }
+        }
+
+        // 应用权限控制到导航菜单
+        function applyMenuPermissions() {
+            // 处理有权限要求的菜单项
+            document.querySelectorAll('[data-permission]').forEach(element => {
+                const permission = element.getAttribute('data-permission');
+                if (!window.hasPermission(permission)) {
+                    element.style.display = 'none';
+                }
+            });
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化权限系统
+            window.permissionSystem.init();
+            
+            // 应用权限到菜单
+            applyMenuPermissions();
+            
+            // 显示用户信息
+            const userInfo = JSON.parse(localStorage.getItem('user_info')) || {};
+            if (userInfo) {
+                // 侧边栏用户信息
+                document.getElementById('sidebarUserName').textContent = userInfo.name || userInfo.username;
+                document.getElementById('sidebarUserRole').textContent = userInfo.role === 'admin' ? '管理员' : (userInfo.role === 'sales' ? '销售员' : '普通用户');
+            }
+            
+            // 退出登录
+            document.getElementById('sidebarLogoutBtn').addEventListener('click', function() {
+                window.logout();
+            });
+            
+            // 初始化仪表盘数据
+            initDashboard();
+            
+            // 初始化侧边栏切换功能
+            initSidebarToggle();
+            
+            // 刷新仪表盘按钮
+            document.getElementById('refreshDashboard').addEventListener('click', function() {
+                initDashboard();
+            });
+            
+        });
+    </script>
+</body>
+</html>
